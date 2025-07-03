@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::ops::Mul;
 use std::ops::Deref;
+use std::error::Error;
 
 #[derive(Debug)]
 pub enum PermutationError {
@@ -14,6 +15,20 @@ pub enum PermutationError {
     NotEvenPermutation,
     // Add more as needed
 }
+
+impl fmt::Display for PermutationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PermutationError::SizeNotMatch => write!(f, "Size mismatch error"),
+            PermutationError::CycleIndexOutOfBounds => write!(f, "Cycle index out of bounds"),
+            PermutationError::OrderIsTooLarge => write!(f, "Order is too large for heap algorithm"),
+            PermutationError::NonDisjointCycles => write!(f, "Non-disjoint cycles in permutation mapping"),
+            PermutationError::NotEvenPermutation => write!(f, "Not an even permutation"),
+        }
+    }
+}
+
+impl Error for PermutationError {}
 
 
 // region: implement permutation group using Vec (standard way in many computational group theory libraries)

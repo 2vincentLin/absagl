@@ -12,9 +12,9 @@ mod tests {
 
     #[test]
     fn test_is_closed_true() {
-        let a = Modulo { value: 0, modulus: 3 };
-        let b = Modulo { value: 1, modulus: 3 };
-        let c = Modulo { value: 2, modulus: 3 };
+        let a = Modulo::new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::new(1, 3).expect("Failed to create Modulo element");
+        let c = Modulo::new(2, 3).expect("Failed to create Modulo element");
 
         let group = Group::new(vec![a, b, c]);
 
@@ -23,8 +23,8 @@ mod tests {
 
     #[test]
     fn test_is_closed_false() {
-        let a = Modulo { value: 0, modulus: 3 };
-        let b = Modulo { value: 1, modulus: 3 };
+        let a = Modulo::new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::new(1, 3).expect("Failed to create Modulo element");
 
         let group = Group::new(vec![a, b]);
         assert!(!group.is_closed());

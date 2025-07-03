@@ -1,5 +1,6 @@
 
 
+use absagl::groups::dihedral::DihedralElement;
 use absagl::groups::permutation::AlternatingGroupElement;
 use absagl::groups::GroupGenerators;
 use absagl::groups::GroupElement;
@@ -10,41 +11,44 @@ use absagl::groups::modulo::Modulo;
 
 use std::collections::HashMap;
 use std::iter::Cycle;
+use std::pin;
 use log::{info, warn, error, debug};
 
 
 
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init(); // Initialize the logger
 
-    let perm1 = Permutation {
-            mapping: vec![0, 2, 1, 4, 3].into_iter().collect(),
-        };
-    let perm2 = Permutation {
-        mapping: vec![0, 2, 1, 4, 3].into_iter().collect(),
-    };
-    println!("permutation 1: {}", perm1);
+    let cycle1 = vec![vec![0, 1, 2]];
+    let cycle2 = vec![vec![2, 1, 0]];
 
-    println!("order of permutation 1: {}", perm1.order());
+    let g1 = Permutation::from_cycles(&cycle1, 3)?;
+    let g2 = Permutation::from_cycles(&cycle2, 3)?;
 
-    let ag1 = AlternatingGroupElement::new(perm1).expect("Should create AlternatingGroupElement");
-    let ag2 = AlternatingGroupElement::new(perm2).expect("Should create AlternatingGroupElement");
+    let g3 = g1.safe_op(&g2)?;
+
+    println!("result: {}", g3);
 
 
-    println!("Alternating Group Element 1: {}", ag1);
-    let result = ag1.op(&ag2);
-    println!("Result of operation: {:?}", result);
-    println!("Result of operation: {}", result);
+    let d1 = DihedralElement::new(3, false, 12)?;
 
-    let g = GroupGenerators::generate_alternating_group(4)
-        .expect("Should generate alternating group");
+    println!("Dihedral Element: {}", d1);
 
-    println!("Generated Alternating Group: {:?}", g.order());
-    for element in &g.elements {
-        println!("Element: {}", element);
+    println!("Identity: {}", DihedralElement::identity(12));
+
+    println!("Inverse: {}", d1.inverse());
+
+    println!("Order: {}", d1.order());
+
+    let d3 = GroupGenerators::generate_dihedral_group(3)?;
+
+    for element in d3.elements {
+        println!("Dihedral Element: {}", element);
     }
 
-    let is_closed = g.is_closed();
-    println!("Is the group closed? {}", is_closed);
+
+
+
+    Ok(())
 }

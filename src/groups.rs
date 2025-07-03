@@ -34,7 +34,7 @@ impl<T: GroupElement> Group<T> {
         a.op(b)
     }
 
-    // Returns the identity element of the group
+    /// Returns the identity element of the group
     pub fn identity(&self) -> T {
         T::identity()
     }
@@ -77,12 +77,12 @@ pub struct GroupGenerators;
 
 impl GroupGenerators {
     /// Generates a dihedral group
-    pub fn generate_modulo_group(n: usize) -> Group<modulo::Modulo> {
+    pub fn generate_modulo_group(n: usize) -> Result<Group<modulo::Modulo>, modulo::ModuloError> {
         // This function can be used to generate a modulo group
         // Example: Modulo::generate_group(3);
         // You can implement this in the modulo module
-        let elements = modulo::Modulo::generate_group(n as u64);
-        Group::new(elements)
+        let elements = modulo::Modulo::generate_group(n as u64)?;
+        Ok(Group::new(elements))
     }
     /// Generates permutation groups
     pub fn generate_permutation_group(n: usize) -> Result<Group<permutation::Permutation>, permutation::PermutationError> {
@@ -99,5 +99,14 @@ impl GroupGenerators {
         // You can implement this in the permutation module
         let elements = permutation::AlternatingGroupElement::generate_group(n)?;
         Ok(Group::new(elements))
+    }
+    /// Generates dihedral groups
+    pub fn generate_dihedral_group(n: usize) -> Result<Group<dihedral::DihedralElement>, dihedral::DihedralError> {
+        // This function can be used to generate a dihedral group
+        // Example: DihedralElement::generate(3);
+        // You can implement this in the dihedral module
+        let elements = dihedral::DihedralElement::generate(n)?;
+        Ok(Group::new(elements))
+        
     }
 }
