@@ -2,6 +2,8 @@ use crate::groups::{GroupElement};
 use crate::utils;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::ops::Mul;
+use std::ops::Deref;
 
 #[derive(Debug)]
 pub enum PermutationError {
@@ -9,6 +11,7 @@ pub enum PermutationError {
     CycleIndexOutOfBounds,
     OrderIsTooLarge,
     NonDisjointCycles,
+    NotEvenPermutation,
     // Add more as needed
 }
 
@@ -18,6 +21,8 @@ pub enum PermutationError {
 /// it means 0 -> 1, 1 -> 2, 2 -> 0, it means index 0 map to 1, index 1 map to 2, index 2 map to 0
 /// 
 
+/// A standard way to represent permutation in many computational group theory libraries
+/// it is a vector of indices, where the value at each index represents the image of that
 #[derive(Clone, PartialEq, Debug)]
 pub struct Permutation {
     pub mapping: Vec<usize>,
@@ -25,15 +30,24 @@ pub struct Permutation {
 
 impl GroupElement for Permutation {
     type Error = PermutationError;
+    /// Perform the operation of two permutations
+    /// this is not safe, it will panic if the sizes of the two permutations are not equal
     fn op(&self, other: &Self) -> Self {
         assert_eq!(self.mapping.len(), other.mapping.len());
         let mapping = other.mapping.iter().map(|&i| self.mapping[i]).collect();
         Permutation { mapping }
     }
+    
+    /// Identity from GroupElement trait, because we need to pass size
+    /// this is a warning function, you should use Permutation::identity(size) instead
     fn identity() -> Self {
-        eprintln!("Warning: Using identity without size may lead to unexpected behavior. Consider using Permutation::identity(size)");
+        log::error!("Warning: Using identity without size may lead to unexpected behavior. Consider using Permutation::identity(size)");
         Permutation { mapping: vec![] } // You may want to pass size as parameter
     }
+
+    /// Inverse of a permutation, which is the permutation that undoes the effect of the original permutation
+    /// it simply swap the index and value in the mapping
+    /// for example, if the mapping is [2, 0, 1], the inverse will be [1, 2, 0]
     fn inverse(&self) -> Self {
         let mut inv = vec![0; self.mapping.len()];
         for (i, &v) in self.mapping.iter().enumerate() {
@@ -41,8 +55,10 @@ impl GroupElement for Permutation {
         }
         Permutation { mapping: inv }
     }
+    /// Perform the operation of two permutations, but return an error if the sizes do not match
     fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.mapping.len() != other.mapping.len() {
+            log::error!("Size mismatch: {} vs {}", self.mapping.len(), other.mapping.len());
             Err(PermutationError::SizeNotMatch)
         } else {
             Ok(self.op(other))
@@ -52,12 +68,29 @@ impl GroupElement for Permutation {
 
 impl Permutation {
 
-    // shadow the identity function in GroupElement trait since we need to pass size
+    /// Create a new permutation given a mapping
+    pub fn new(mapping: Vec<usize>) -> Result<Self, PermutationError> {
+        if !utils::is_mapping_valid(&mapping) {
+            log::error!("Invalid mapping: {:?}", mapping);
+            return Err(PermutationError::NonDisjointCycles);
+        }
+        Ok(Permutation { mapping })
+    }
+
+    /// Get the mapping of the permutation
+    pub fn mapping(&self) -> &Vec<usize> {
+        &self.mapping
+    }
+
+    /// shadow the identity function in GroupElement trait since we need to pass size
     pub fn identity(size: usize) -> Self {
         Permutation { mapping: (0..size).collect() }
     }
 
-    // use cycle decomposition to determine if the permutation is even or odd
+    /// use cycle decomposition to determine if the permutation is even or odd
+    /// in abstract algebra, a permutation is even if it can be expressed as a product of an even number of transpositions
+    /// and we can break down k-length cycle into k-1 transpositions
+    /// for example, (1,2,3) can be expressed as (1,3)(1,2), which is 2 transpositions, thus it is even
     pub fn is_even(&self) -> bool {
         let mut visited = vec![false; self.mapping.len()];
         let mut parity = 0;
@@ -78,12 +111,27 @@ impl Permutation {
         parity % 2 == 0
     }
 
-    // Construct a permutation from a list of cycles
-    pub fn from_cycles(cycles: &[Vec<usize>], n: usize) -> Result<Self, PermutationError> {
+    /// Construct a permutation from a list of cycles
+    /// so you can pass cycles like (0,2,4) 0-based cycle to create a permutation
+    /// it'll generate a mapping like [2, 1, 4, 3, 0] for size 5
+    /// 
+    /// ```rust
+    /// # use absagl::groups::permutation::Permutation; // import the Permutation struct
+    /// let cycles = vec![vec![0, 2, 4]];
+    /// let size = 5;
+    /// let perm = Permutation::from_cycles(&cycles, size).expect("Should construct permutation");
+    ///
+    /// // This is the crucial part: we assert that the output is correct.
+    /// // If they are not equal, the test will panic and fail.
+    /// let expected = vec![2, 1, 4, 3, 0];
+    /// assert_eq!(perm.mapping, expected); // 
+    /// ```
+     pub fn from_cycles(cycles: &[Vec<usize>], n: usize) -> Result<Self, PermutationError> {
         // Check for out-of-bounds indices
         for cycle in cycles {
             for &idx in cycle {
                 if idx >= n {
+                    log::error!("Cycle index {} is out of bounds for size {}", idx, n);
                     return Err(PermutationError::CycleIndexOutOfBounds);
                 }
             }
@@ -94,30 +142,63 @@ impl Permutation {
         for cycle in cycles {
             if cycle.len() < 2 { continue; }
             for i in 0..cycle.len() {
-                let from = cycle[i]; // Convert to 0-based index
-                let to = cycle[(i + 1) % cycle.len()]; // Convert to 0-based index
+                let from = cycle[i]; 
+                let to = cycle[(i + 1) % cycle.len()]; 
                 mapping[from] = to;
             }
         }
 
         if utils::is_mapping_valid(&mapping) {
+            log::debug!("Permutation mapping is valid: {:?}", mapping);
             Ok(Permutation { mapping })
         } else {
+            log::error!("Permutation mapping is not valid: {:?}", mapping);
             Err(PermutationError::NonDisjointCycles)
         }
 
 
     }
 
-    // using heap algorithm to generate permutation, only used for small order
-    // heap algorithm relies on stack to operate properly, thus cannot be parallelize
+    /// Calculates the order of the permutation.
+    /// The order is the smallest positive integer k such that p^k is the identity.
+    pub fn order(&self) -> usize {
+        let mut visited = vec![false; self.mapping.len()];
+        let mut overall_lcm = 1;
+
+        for i in 0..self.mapping.len() {
+            if visited[i] {
+                continue;
+            }
+
+            // We've found the start of a new cycle. Let's find its length.
+            let mut cycle_len = 0;
+            let mut j = i;
+            while !visited[j] {
+                visited[j] = true;
+                j = self.mapping[j];
+                cycle_len += 1;
+            }
+
+            // Update the overall LCM with the new cycle's length.
+            if cycle_len > 0 {
+                overall_lcm = utils::lcm(overall_lcm, cycle_len);
+            }
+        }
+        overall_lcm
+    }
+
+    /// using heap algorithm to generate permutation, only used for small order
+    /// heap algorithm relies on stack to operate properly, thus cannot be parallelize
     pub fn generate_group(n: usize) -> Result<Vec<Self>, PermutationError> {
         
         // when n = 12, it'll take around 46 GB memory
         if n > 11 {
+            log::error!("Order {} is too large for heap algorithm, maximum is 11", n);
             return Err(PermutationError::OrderIsTooLarge);
         }
 
+        /// Recursive function to generate permutations using Heap's algorithm.
+        /// k is the size of the current permutation being generated
         fn heap_recursive(k: usize, arr: &mut Vec<usize>, output: &mut Vec<Vec<usize>>) {
             if k == 1 {
                 output.push(arr.clone());
@@ -142,7 +223,7 @@ impl Permutation {
     heap_recursive(n, &mut arr, &mut result);
 
     Ok(result.into_iter().map(|mapping| Permutation { mapping }).collect())
-}
+    }
 
 
 
@@ -168,13 +249,14 @@ impl fmt::Display for Permutation {
             cycles.push(cycle);
         }
 
+        // note that for identity permutation, cycles will be empty
         if cycles.is_empty() {
             write!(f, "()")
         } else {
             for cycle in cycles {
                 write!(f, "(")?;
                 for i in cycle {
-                    write!(f, "{} ", i + 1)?; // math-style, 1-based
+                    write!(f, "{} ", i)?; // 0-based
                 }
                 write!(f, "\x08)")?; // backspace to remove last space
             }
@@ -183,13 +265,127 @@ impl fmt::Display for Permutation {
     }
 }
 
+/// overload the multiplication operator for Permutation
+impl Mul for Permutation {
+    type Output = Self;
+
+    fn mul(self, other: Self) -> Self::Output {
+        self.op(&other)
+    }
+}
+
+// overload Mul for for borrowed Permutation to avoid consuming the permutations.
+impl<'a, 'b> Mul<&'b Permutation> for &'a Permutation {
+    type Output = Permutation;
+
+    fn mul(self, rhs: &'b Permutation) -> Self::Output {
+        self.op(rhs)
+    }
+}
+
+/// Create an Alternating Group Element from a Permutation
+/// An alternating group is a subgroup of the symmetric group consisting of all even permutations.
+#[derive(Clone, PartialEq, Debug)]
+pub struct AlternatingGroupElement {
+    permutation: Permutation,
+}
+
+impl GroupElement for AlternatingGroupElement {
+    type Error = PermutationError;
+
+    /// Perform the operation of two alternating group elements
+    /// this is not safe, it will panic if the sizes of the two permutations are not equal
+    /// by abstract algebra, the result of two even permutations is also an even permutation
+    fn op(&self, other: &Self) -> Self {
+        AlternatingGroupElement {
+            permutation: self.permutation.op(&other.permutation),
+        }
+    }
+
+    fn identity() -> Self {
+        AlternatingGroupElement {
+            permutation: Permutation::identity(0), // empty permutation
+        }
+    }
+
+    /// Inverse of an alternating group element, which is the permutation that undoes the effect of the original permutation
+    fn inverse(&self) -> Self {
+        AlternatingGroupElement {
+            permutation: self.permutation.inverse(),
+        }
+    }
+
+    /// Perform the operation of two alternating group elements, but return an error if the sizes do not match
+    fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
+        if self.permutation.mapping.len() != other.permutation.mapping.len() {
+            log::error!("Size mismatch: {} vs {}", self.permutation.mapping.len(), other.permutation.mapping.len());
+            Err(PermutationError::SizeNotMatch)
+        } else {
+            Ok(self.op(other))
+        }
+    }
+}
+
+
+impl AlternatingGroupElement {
+    pub fn new(p: Permutation) -> Result<Self, PermutationError> {
+        if p.is_even() {
+            Ok(AlternatingGroupElement { permutation: p })
+        } else {
+            log::error!("Cannot create AlternatingGroupElement from odd permutation: {:?}", p);
+            Err(PermutationError::NotEvenPermutation)                
+        }
+    }
+
+    pub fn identity(size: usize) -> Self {
+        AlternatingGroupElement {
+            permutation: Permutation::identity(size),
+        }
+    }
+
+    /// Generates all elements of the alternating group A_n.
+    pub fn generate_group(n: usize) -> Result<Vec<Self>, PermutationError> {
+        // 1. Generate the full symmetric group S_n.
+        let all_permutations = Permutation::generate_group(n)?;
+
+        // 2. Filter for even permutations and wrap them.
+        let even_permutations = all_permutations
+            .into_iter()
+            // Keep only the permutations that are even.
+            .filter(|p| p.is_even())
+            // Wrap each valid Permutation in our AlternatingGroupElement struct.
+            .map(|p| AlternatingGroupElement { permutation: p })
+            // Collect the results into a new vector.
+            .collect();
+        
+        Ok(even_permutations)
+    }
+}
+
+// implement Deref for AlternatingGroupElement to allow access to some methods of Permutation directly not involves returning a new Permutation
+impl Deref for AlternatingGroupElement {
+    type Target = Permutation;
+
+    fn deref(&self) -> &Self::Target {
+        &self.permutation
+    }
+}
+
+impl fmt::Display for AlternatingGroupElement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Just write the inner permutation to the formatter.
+        // Since `self.permutation` already implements Display, this works perfectly.
+        write!(f, "{}", self.permutation)
+    }
+}
 
 
 // endregion
 
 // region: implment permutation group using HashMap
 
-
+/// using HashMap to represent sparse permutation
+/// this is useful when the permutation is sparse, i.e. only a few elements are perm
 #[derive(Clone, PartialEq, Debug)]
 pub struct SparsePerm {
     pub mapping: HashMap<usize, usize>,

@@ -1,6 +1,6 @@
-// mod groups;
-// mod utils;
 
+
+use absagl::groups::permutation::AlternatingGroupElement;
 use absagl::groups::GroupGenerators;
 use absagl::groups::GroupElement;
 use absagl::groups::permutation::Permutation;
@@ -8,60 +8,43 @@ use absagl::groups::modulo::Modulo;
 
 
 
-// use crate::groups::GroupElement;
-// use crate::groups::modulo::Modulo;
-// use crate::groups::permutation::Permutation;
-// use crate::groups::permutation::SparsePerm;
 use std::collections::HashMap;
+use std::iter::Cycle;
+use log::{info, warn, error, debug};
+
 
 
 
 fn main() {
-    let a = Permutation {
-        mapping: vec![0,1,2,4,3].into_iter().collect(),
+    env_logger::init(); // Initialize the logger
+
+    let perm1 = Permutation {
+            mapping: vec![0, 2, 1, 4, 3].into_iter().collect(),
+        };
+    let perm2 = Permutation {
+        mapping: vec![0, 2, 1, 4, 3].into_iter().collect(),
     };
-    let b = Permutation {
-        mapping: vec![0,2,1,3,4].into_iter().collect(),
-    };
-    let c = a.op(&b);
-    assert_eq!(c.mapping, vec![0, 2, 1, 4, 3].into_iter().collect::<Vec<_>>());
-    println!("Result of a op b: {:?}", c.mapping);
+    println!("permutation 1: {}", perm1);
 
-    println!("is_even: {}", c.is_even());
+    println!("order of permutation 1: {}", perm1.order());
 
-    let identity = Permutation::identity(5);
-    println!("is_even: {}", identity.is_even());
-
-    let d = Permutation {
-        mapping: vec![0,2,3,4,1].into_iter().collect(),
-    };
-
-    println!("d is even: {}", d.is_even());
-    
-    let p = match Permutation::from_cycles(&vec![vec![1,2], vec![3,5]], 6) {
-        Ok(p) => {
-            println!("Permutation from cycles: {:?}", p.mapping);
-            p
-        },
-        Err(e) => {
-            eprintln!("Error creating permutation from cycles: {:?}", e);
-            return;
-        }
-    };
-
-    println!("Permutation from cycles: {}", p);
-
-    let p = match Permutation::generate_group(3) {
-        Ok(group) => {
-            // println!("Generated permutation group: {:?}", group);
-            group
-        },
-        Err(e) => {
-            eprintln!("Error generating permutation group: {:?}", e);
-            return;
-        }
-    };
-    println!("length of generated group: {}", p.len());
+    let ag1 = AlternatingGroupElement::new(perm1).expect("Should create AlternatingGroupElement");
+    let ag2 = AlternatingGroupElement::new(perm2).expect("Should create AlternatingGroupElement");
 
 
+    println!("Alternating Group Element 1: {}", ag1);
+    let result = ag1.op(&ag2);
+    println!("Result of operation: {:?}", result);
+    println!("Result of operation: {}", result);
+
+    let g = GroupGenerators::generate_alternating_group(4)
+        .expect("Should generate alternating group");
+
+    println!("Generated Alternating Group: {:?}", g.order());
+    for element in &g.elements {
+        println!("Element: {}", element);
+    }
+
+    let is_closed = g.is_closed();
+    println!("Is the group closed? {}", is_closed);
 }

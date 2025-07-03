@@ -23,26 +23,22 @@ mod test_permutaion {
 
     #[test]
     fn test_permutation_identity() {
-        let a = Permutation {
-            mapping: vec![0, 1, 2, 4, 3].into_iter().collect(),
-        };
+        let id_mapping = vec![0, 1, 2, 3, 4].into_iter().collect::<Vec<usize>>();
         let identity = Permutation::identity(5) ;
         println!("Identity mapping: {:?}", identity.mapping);
-        let b = a.op(&identity);
-        assert_eq!(b.mapping, a.mapping);
+        assert_eq!(identity.mapping(), &id_mapping);
     }
 
     #[test]
     fn test_permutation_inverse() {
         let a = Permutation {
-            mapping: vec![0, 1, 2, 4, 3].into_iter().collect(),
+            mapping: vec![2, 1, 0, 4, 3].into_iter().collect(),
         };
         let inverse = a.inverse();
-        let b = a.op(&inverse);
-        assert_eq!(b.mapping.len(), a.mapping.len());
-        for i in 0..b.mapping.len() {
-            assert_eq!(b.mapping.get(i as usize), Some(&(i as usize)));
-        }
+        let b = inverse.op(&a);
+        let idenity = Permutation::identity(a.mapping.len());
+        assert_eq!(b.mapping, idenity.mapping);
+        
     }
     #[test]
     fn test_permutation_safe_op_size_mismatch() {
@@ -78,6 +74,80 @@ mod test_permutaion {
         let expected = vec![2, 1, 4, 3, 0];
         assert_eq!(perm.mapping, expected);
     }
+
+    #[test]
+    fn test_permutaion_order() {
+        let perm = Permutation {
+            mapping: vec![1, 0, 3, 4, 2].into_iter().collect(),
+        };
+        let order = perm.order();
+        assert_eq!(order, 6, "The order of the permutation should be 6");
+    }
+
+
+}
+
+
+#[cfg(test)]
+mod test_alternating_group_element {
+    use super::*;
+    use absagl::groups::permutation::AlternatingGroupElement;
+
+    #[test]
+    fn test_alternating_group_element_identity() {
+        let identity = AlternatingGroupElement::identity(5);
+        let id_mapping = vec![0, 1, 2, 3, 4].into_iter().collect::<Vec<usize>>();
+        
+        assert_eq!(identity.mapping(), &id_mapping);
+    }
+
+    #[test]
+    fn test_alternating_group_element_creation() {
+        let perm = Permutation {
+            mapping: vec![1, 0, 2, 4, 3].into_iter().collect(),
+        };
+        let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
+        assert_eq!(ag.mapping().len(), 5);
+    }
+
+
+    #[test]
+    fn test_alternating_group_element_op() {
+        let perm1 = Permutation {
+            mapping: vec![0, 2, 1, 4, 3].into_iter().collect(),
+        };
+        let perm2 = Permutation {
+            mapping: vec![0, 2, 1, 4, 3].into_iter().collect(),
+        };
+        let ag1 = AlternatingGroupElement::new(perm1).expect("Should create AlternatingGroupElement");
+        let ag2 = AlternatingGroupElement::new(perm2).expect("Should create AlternatingGroupElement");
+        let result = ag1.op(&ag2);
+        assert_eq!(result.mapping(), &vec![0, 1, 2, 3, 4].into_iter().collect::<Vec<usize>>());
+    }
+
+    #[test]
+    fn test_alternating_group_element_inverse() {
+        let perm = Permutation {
+            mapping: vec![1, 0, 2, 4, 3].into_iter().collect(),
+        };
+        let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
+        let inverse = ag.inverse();
+        let identity = AlternatingGroupElement::identity(5);
+        let result = ag.op(&inverse);
+        assert_eq!(result, identity, "The result of ag op inverse should be the identity element");
+    }
+
+    #[test]
+    fn test_alternating_group_element_order() {
+        let perm = Permutation {
+            mapping: vec![1, 0, 2, 4, 3].into_iter().collect(),
+        };
+        let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
+        let order = ag.order();
+        assert_eq!(order, 2, "The order of the alternating group element should be 2");
+    }
+
+    
 }
 
 

@@ -14,3 +14,13 @@ pub fn is_mapping_valid(mapping: &[usize]) -> bool {
 
     true
 }
+
+/// Computes the greatest common divisor (GCD) of two numbers using the Euclidean algorithm.
+pub fn gcd(a: usize, b: usize) -> usize {
+    if b == 0 { a } else { gcd(b, a % b) }
+}
+
+/// Computes the least common multiple (LCM) of two numbers using the GCD.
+pub fn lcm(a: usize, b: usize) -> usize {
+    if a == 0 || b == 0 { 0 } else { (a * b) / gcd(a, b) }
+}

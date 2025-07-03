@@ -16,7 +16,7 @@ mod tests {
 
     #[test]
     fn test_identity_element() {
-        let identity = Modulo::identity();
+        let identity = Modulo::identity(5);
         assert_eq!(identity.value, 0); // Identity for addition mod n is 0
     }
 
