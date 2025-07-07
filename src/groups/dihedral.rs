@@ -1,7 +1,7 @@
 use std::fmt;
 use std::error::Error;
 
-
+use crate::error::AbsaglError;
 use crate::groups::GroupElement;
 use crate::utils;
 
@@ -39,7 +39,7 @@ pub struct DihedralElement {
 }
 
 impl GroupElement for DihedralElement {
-    type Error = DihedralError;
+    type Error = AbsaglError;
 
     fn op(&self, other: &Self) -> Self {
         if self.n != other.n {
@@ -56,13 +56,7 @@ impl GroupElement for DihedralElement {
         }
     }
 
-    fn identity() -> Self {
-        DihedralElement {
-            rotation: 0,
-            reflection: false,
-            n: 1, // Default to a polygon with 1 side
-        }
-    }
+   
 
     fn inverse(&self) -> Self {
         DihedralElement {
@@ -75,7 +69,7 @@ impl GroupElement for DihedralElement {
     fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.n != other.n {
             log::error!("Size mismatch: {} != {}", self.n, other.n);
-            return Err(DihedralError::SizeNotMatch);
+            return Err(DihedralError::SizeNotMatch)?;
         }
         Ok(self.op(other))
     }
@@ -84,10 +78,10 @@ impl GroupElement for DihedralElement {
 
 impl DihedralElement {
     /// Creates a new DihedralElement with the given rotation and reflection
-    pub fn new(rotation: usize, reflection: bool, n: usize) -> Result<Self, DihedralError> {
+    pub fn new(rotation: usize, reflection: bool, n: usize) -> Result<Self, AbsaglError> {
         if n == 0 {
             log::error!("Size cannot be zero");
-            return Err(DihedralError::SizeCannotBeZero);
+            // return Err(DihedralError::SizeCannotBeZero);
         }
         Ok(DihedralElement {
             rotation,

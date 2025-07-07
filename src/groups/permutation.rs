@@ -1,5 +1,6 @@
 use crate::groups::{GroupElement};
 use crate::utils;
+use crate::error::AbsaglError;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::ops::Mul;
@@ -40,11 +41,11 @@ impl Error for PermutationError {}
 /// it is a vector of indices, where the value at each index represents the image of that
 #[derive(Clone, PartialEq, Debug)]
 pub struct Permutation {
-    pub mapping: Vec<usize>,
+    mapping: Vec<usize>,
 }
 
 impl GroupElement for Permutation {
-    type Error = PermutationError;
+    type Error = AbsaglError;
     /// Perform the operation of two permutations
     /// this is not safe, it will panic if the sizes of the two permutations are not equal
     fn op(&self, other: &Self) -> Self {
@@ -53,13 +54,6 @@ impl GroupElement for Permutation {
         Permutation { mapping }
     }
     
-    /// Identity from GroupElement trait, because we need to pass size
-    /// this is a warning function, you should use Permutation::identity(size) instead
-    fn identity() -> Self {
-        log::error!("Warning: Using identity without size may lead to unexpected behavior. Consider using Permutation::identity(size)");
-        Permutation { mapping: vec![] } // You may want to pass size as parameter
-    }
-
     /// Inverse of a permutation, which is the permutation that undoes the effect of the original permutation
     /// it simply swap the index and value in the mapping
     /// for example, if the mapping is [2, 0, 1], the inverse will be [1, 2, 0]
@@ -74,7 +68,7 @@ impl GroupElement for Permutation {
     fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.mapping.len() != other.mapping.len() {
             log::error!("Size mismatch: {} vs {}", self.mapping.len(), other.mapping.len());
-            Err(PermutationError::SizeNotMatch)
+            Err(PermutationError::SizeNotMatch)?
         } else {
             Ok(self.op(other))
         }
@@ -84,10 +78,10 @@ impl GroupElement for Permutation {
 impl Permutation {
 
     /// Create a new permutation given a mapping
-    pub fn new(mapping: Vec<usize>) -> Result<Self, PermutationError> {
+    pub fn new(mapping: Vec<usize>) -> Result<Self, AbsaglError> {
         if !utils::is_mapping_valid(&mapping) {
             log::error!("Invalid mapping: {:?}", mapping);
-            return Err(PermutationError::NonDisjointCycles);
+            return Err(PermutationError::NonDisjointCycles)?;
         }
         Ok(Permutation { mapping })
     }
@@ -97,7 +91,7 @@ impl Permutation {
         &self.mapping
     }
 
-    /// shadow the identity function in GroupElement trait since we need to pass size
+    /// Return identity for the permutation 
     pub fn identity(size: usize) -> Self {
         Permutation { mapping: (0..size).collect() }
     }
@@ -139,15 +133,15 @@ impl Permutation {
     /// // This is the crucial part: we assert that the output is correct.
     /// // If they are not equal, the test will panic and fail.
     /// let expected = vec![2, 1, 4, 3, 0];
-    /// assert_eq!(perm.mapping, expected); // 
+    /// assert_eq!(perm.mapping(), &expected); // 
     /// ```
-     pub fn from_cycles(cycles: &[Vec<usize>], n: usize) -> Result<Self, PermutationError> {
+    pub fn from_cycles(cycles: &[Vec<usize>], n: usize) -> Result<Self, AbsaglError> {
         // Check for out-of-bounds indices
         for cycle in cycles {
             for &idx in cycle {
                 if idx >= n {
                     log::error!("Cycle index {} is out of bounds for size {}", idx, n);
-                    return Err(PermutationError::CycleIndexOutOfBounds);
+                    return Err(PermutationError::CycleIndexOutOfBounds)?;
                 }
             }
         }
@@ -168,7 +162,7 @@ impl Permutation {
             Ok(Permutation { mapping })
         } else {
             log::error!("Permutation mapping is not valid: {:?}", mapping);
-            Err(PermutationError::NonDisjointCycles)
+            Err(PermutationError::NonDisjointCycles)?
         }
 
 
@@ -204,12 +198,12 @@ impl Permutation {
 
     /// using heap algorithm to generate permutation, only used for small order
     /// heap algorithm relies on stack to operate properly, thus cannot be parallelize
-    pub fn generate_group(n: usize) -> Result<Vec<Self>, PermutationError> {
+    pub fn generate_group(n: usize) -> Result<Vec<Self>, AbsaglError> {
         
         // when n = 12, it'll take around 46 GB memory
         if n > 11 {
             log::error!("Order {} is too large for heap algorithm, maximum is 11", n);
-            return Err(PermutationError::OrderIsTooLarge);
+            return Err(PermutationError::OrderIsTooLarge)?;
         }
 
         /// Recursive function to generate permutations using Heap's algorithm.
@@ -306,7 +300,7 @@ pub struct AlternatingGroupElement {
 }
 
 impl GroupElement for AlternatingGroupElement {
-    type Error = PermutationError;
+    type Error = AbsaglError;
 
     /// Perform the operation of two alternating group elements
     /// this is not safe, it will panic if the sizes of the two permutations are not equal
@@ -314,12 +308,6 @@ impl GroupElement for AlternatingGroupElement {
     fn op(&self, other: &Self) -> Self {
         AlternatingGroupElement {
             permutation: self.permutation.op(&other.permutation),
-        }
-    }
-
-    fn identity() -> Self {
-        AlternatingGroupElement {
-            permutation: Permutation::identity(0), // empty permutation
         }
     }
 
@@ -334,7 +322,7 @@ impl GroupElement for AlternatingGroupElement {
     fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.permutation.mapping.len() != other.permutation.mapping.len() {
             log::error!("Size mismatch: {} vs {}", self.permutation.mapping.len(), other.permutation.mapping.len());
-            Err(PermutationError::SizeNotMatch)
+            Err(PermutationError::SizeNotMatch)?
         } else {
             Ok(self.op(other))
         }
@@ -343,15 +331,16 @@ impl GroupElement for AlternatingGroupElement {
 
 
 impl AlternatingGroupElement {
-    pub fn new(p: Permutation) -> Result<Self, PermutationError> {
+    pub fn new(p: Permutation) -> Result<Self, AbsaglError> {
         if p.is_even() {
             Ok(AlternatingGroupElement { permutation: p })
         } else {
             log::error!("Cannot create AlternatingGroupElement from odd permutation: {:?}", p);
-            Err(PermutationError::NotEvenPermutation)                
+            Err(PermutationError::NotEvenPermutation)?
         }
     }
 
+    /// Return identity element for Permutation(n)
     pub fn identity(size: usize) -> Self {
         AlternatingGroupElement {
             permutation: Permutation::identity(size),
@@ -359,7 +348,7 @@ impl AlternatingGroupElement {
     }
 
     /// Generates all elements of the alternating group A_n.
-    pub fn generate_group(n: usize) -> Result<Vec<Self>, PermutationError> {
+    pub fn generate_group(n: usize) -> Result<Vec<Self>, AbsaglError> {
         // 1. Generate the full symmetric group S_n.
         let all_permutations = Permutation::generate_group(n)?;
 
@@ -407,7 +396,7 @@ pub struct SparsePerm {
 }
 
 impl GroupElement for SparsePerm {
-    type Error = PermutationError;
+    type Error = AbsaglError;
     fn op(&self, other: &Self) -> Self {
         let mut mapping = HashMap::new();
         for (&k, &v) in &self.mapping {
@@ -419,9 +408,7 @@ impl GroupElement for SparsePerm {
         SparsePerm { mapping }
     }
 
-    fn identity() -> Self {
-        SparsePerm { mapping: HashMap::new() }
-    }
+    
 
     fn inverse(&self) -> Self {
         let mut inv = HashMap::new();
@@ -433,10 +420,16 @@ impl GroupElement for SparsePerm {
 
     fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.mapping.keys().any(|k| !other.mapping.contains_key(k)) {
-            Err(PermutationError::SizeNotMatch)
+            Err(PermutationError::SizeNotMatch)?
         } else {
             Ok(self.op(other))
         }
+    }
+}
+
+impl SparsePerm {
+    pub fn identity() -> Self {
+        SparsePerm { mapping: HashMap::new() }
     }
 }
 
@@ -495,3 +488,169 @@ impl fmt::Display for SparsePerm {
 
 // endregion
 
+
+
+
+#[cfg(test)]
+mod test_permutaion {
+    use super::*;
+    
+
+    #[test]
+    fn test_permutaion_create() {
+
+        let a = Permutation::new(vec![0,1,2]).expect("should create permutation");
+        assert_eq!(a.mapping(), &vec![0,1,2])
+
+    }
+
+    #[test]
+    fn test_permutation_op() {
+        let a = Permutation::new(vec![0, 1, 2, 4, 3]).expect("should create permutation");
+        let b = Permutation::new(vec![0, 2, 1, 3, 4]).expect("should create permutation");
+        
+        let c = a.op(&b);
+        assert_eq!(c.mapping(), &vec![0, 2, 1, 4, 3]);
+    }
+
+    #[test]
+    fn test_permutation_identity() {
+        let a = Permutation::new(vec![0,1,2,3,4]).expect("should create element");
+        let identity = Permutation::identity(5) ;
+        println!("Identity mapping: {:?}", identity.mapping);
+        assert_eq!(identity.mapping(), a.mapping());
+    }
+
+    #[test]
+    fn test_permutation_inverse() {
+        let a = Permutation::new(vec![2, 1, 0, 4, 3]).expect("should create element");
+        let inverse = a.inverse();
+        let b = inverse.op(&a);
+        let idenity = Permutation::identity(a.mapping.len());
+        assert_eq!(b.mapping, idenity.mapping);
+        
+    }
+    #[test]
+    fn test_permutation_safe_op_size_mismatch() {
+
+        let a = Permutation::new(vec![0, 1, 2, 3]).expect("should create element");
+
+        let b = Permutation::new(vec![0, 2, 1, 3, 4]).expect("should create element");
+        let result = a.safe_op(&b);
+        match result {
+            Err(AbsaglError::Permutation(PermutationError::SizeNotMatch)) => {
+                // Test passes, this is the expected outcome
+            },
+            _ => panic!("Expected Err(PermutationError::SizeMismatch), but got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_permutation_from_cycles_out_of_bounds() {
+        // The cycle contains an element out of bounds for the given size
+        let cycles = vec![vec![0, 5]]; // 5 is out of bounds for size 4
+        let size = 4;
+        let result = Permutation::from_cycles(&cycles, size);
+        
+        match result {
+            Err(AbsaglError::Permutation(PermutationError::CycleIndexOutOfBounds)) => {
+                // Test passes, this is the expected outcome
+            },
+            _ => panic!("Expected Err(PermutationError::CycleIndexOutOfBounds), but got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_permutation_from_cycles_valid() {
+        // A valid cycle for size 5
+        let cycles = vec![vec![0, 2, 4]];
+        let size = 5;
+        let perm = Permutation::from_cycles(&cycles, size).expect("Should construct permutation");
+        // 0->2, 2->4, 4->0, 1->1, 3->3
+        let expected = vec![2, 1, 4, 3, 0];
+        assert_eq!(perm.mapping, expected);
+    }
+
+    #[test]
+    fn test_permutaion_order() {
+        
+        let perm = Permutation::new(vec![1, 0, 3, 4, 2]).expect("should create element");
+        let order = perm.order();
+        assert_eq!(order, 6, "The order of the permutation should be 6");
+    }
+
+}
+
+
+
+#[cfg(test)]
+mod test_alternating_group_element {
+    use super::*;
+
+    #[test]
+    fn test_alternating_group_element_creation_fail() {
+
+        let perm = Permutation::new(vec![1, 0, 3, 4, 2]).expect("should create element");
+        let result = AlternatingGroupElement::new(perm);
+        match result {
+            Err(AbsaglError::Permutation(PermutationError::NotEvenPermutation)) => {
+                //
+            },
+            _ => panic!("Expected Err(AbsaglError::Permutation(PermutationError::NotEvenPermutation)), but got {:?}", result),
+
+        }
+    }
+
+    #[test]
+    fn test_alternating_group_element_creation_success() {
+
+        let perm = Permutation::new(vec![1, 0, 2, 4, 3]).expect("should create element");
+        let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
+        assert_eq!(ag.mapping().len(), 5);
+    }
+
+    
+
+
+    #[test]
+    fn test_alternating_group_element_op() {
+
+        let perm1 = Permutation::new(vec![0, 2, 1, 4, 3]).expect("should create element");
+        let perm2 = Permutation::new(vec![0, 2, 1, 4, 3]).expect("should create element");
+        let ag1 = AlternatingGroupElement::new(perm1).expect("Should create AlternatingGroupElement");
+        let ag2 = AlternatingGroupElement::new(perm2).expect("Should create AlternatingGroupElement");
+        let result = ag1.op(&ag2);
+        assert_eq!(result.mapping(), &vec![0, 1, 2, 3, 4].into_iter().collect::<Vec<usize>>());
+    }
+
+    #[test]
+    fn test_alternating_group_element_identity() {
+        let identity = AlternatingGroupElement::identity(5);
+        
+        assert_eq!(identity.mapping(), &vec![0, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_alternating_group_element_inverse() {
+ 
+        let perm = Permutation::new(vec![1, 0, 2, 4, 3]).expect("should create element");
+
+        let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
+        let inverse = ag.inverse();
+        let identity = AlternatingGroupElement::identity(5);
+        let result = ag.op(&inverse);
+        assert_eq!(result, identity, "The result of ag op inverse should be the identity element");
+    }
+
+    #[test]
+    fn test_alternating_group_element_order() {
+        
+        let perm = Permutation::new(vec![1, 0, 2, 4, 3]).expect("should create element");
+
+        let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
+        let order = ag.order();
+        assert_eq!(order, 2, "The order of the alternating group element should be 2");
+    }
+
+    
+}

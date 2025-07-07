@@ -1,10 +1,11 @@
 use crate::groups::{GroupElement};
 use crate::utils;
-use std::f32::consts::E;
+use crate::error::AbsaglError;
+
 use std::fmt;
 use std::error::Error;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Modulo {
     value: u64,
     modulus: u64,
@@ -32,7 +33,7 @@ impl Error for ModuloError {}
 
 
 impl GroupElement for Modulo {
-    type Error = ModuloError;
+    type Error = AbsaglError;
     fn op(&self, other: &Self) -> Self {
         assert_eq!(self.modulus, other.modulus, "Modulus must match for operation");
         Modulo {
@@ -40,9 +41,7 @@ impl GroupElement for Modulo {
             modulus: self.modulus,
         }
     }
-    fn identity() -> Self {
-        Modulo { value: 0, modulus: 1 } // You may want to pass modulus as parameter
-    }
+    
     fn inverse(&self) -> Self {
         Modulo {
             value: (self.modulus - self.value) % self.modulus,
@@ -52,7 +51,7 @@ impl GroupElement for Modulo {
     fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.modulus != other.modulus {
             log::error!("Size mismatch: {} != {}", self.modulus, other.modulus);
-            Err(ModuloError::SizeNotMatch)
+            Err(ModuloError::SizeNotMatch)?
         } else {
             Ok(self.op(other))
         }
@@ -62,10 +61,10 @@ impl GroupElement for Modulo {
 impl Modulo {
 
     /// Create a new Modulo element
-    pub fn new(value: u64, modulus: u64) -> Result<Self, ModuloError> {
+    pub fn new(value: u64, modulus: u64) -> Result<Self, AbsaglError> {
         if modulus == 0 {
             log::error!("Modulus cannot be zero");
-            return Err(ModuloError::ZeroModulus);
+            return Err(ModuloError::ZeroModulus)?;
         }
         let value = value % modulus; // Ensure value is within bounds
         Ok(Modulo { value, modulus })
@@ -84,10 +83,10 @@ impl Modulo {
     }
 
     /// Generate Z_n group elements
-    pub fn generate_group(n: u64) -> Result<Vec<Self>, ModuloError> {
+    pub fn generate_group(n: u64) -> Result<Vec<Self>, AbsaglError> {
         if n == 0 {
             log::error!("Cannot generate group with modulus zero");
-            return Err(ModuloError::ZeroModulus);
+            return Err(ModuloError::ZeroModulus)?;
         }
         Ok((0..n).map(|i| Modulo { value: i, modulus: n }).collect())
     }
@@ -99,6 +98,18 @@ impl Modulo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_modulo_create() {
+        let result = Modulo::new(1, 0);
+        match result {
+            // you can use Err(AbsaglError::Modulo(_)) too
+            Err(AbsaglError::Modulo(ModuloError::ZeroModulus)) => {
+                //
+            },
+            _ => panic!("Expected Err(AbsaglError::Modulo(ModuloError::ZeroModulus)), but got {:?}", result),
+        }
+    }
 
     #[test]
     fn test_modulo_op() {

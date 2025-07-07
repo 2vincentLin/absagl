@@ -1,11 +1,15 @@
 
 
+use absagl::error::AbsaglError;
 use absagl::groups::dihedral::DihedralElement;
+use absagl::groups::factor::Coset;
 use absagl::groups::permutation::AlternatingGroupElement;
+use absagl::groups::Group;
 use absagl::groups::GroupGenerators;
 use absagl::groups::GroupElement;
 use absagl::groups::permutation::Permutation;
 use absagl::groups::modulo::Modulo;
+use absagl::groups::FiniteGroup;
 
 
 
@@ -20,34 +24,19 @@ use log::{info, warn, error, debug};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init(); // Initialize the logger
 
-    let cycle1 = vec![vec![0, 1, 2]];
-    let cycle2 = vec![vec![2, 1, 0]];
+        let a = Modulo::new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::new(1, 3).expect("Failed to create Modulo element");
 
-    let g1 = Permutation::from_cycles(&cycle1, 3)?;
-    let g2 = Permutation::from_cycles(&cycle2, 3)?;
-
-    let g3 = g1.safe_op(&g2)?;
-
-    println!("result: {}", g3);
+        let group = FiniteGroup::new(vec![a, b]);
+        println!("is group closed: {:?}", group.is_closed());
 
 
-    let d1 = DihedralElement::new(3, false, 12)?;
+        // let coset1 = Coset::new(b, &group).expect("msg");
 
-    println!("Dihedral Element: {}", d1);
-
-    println!("Identity: {}", DihedralElement::identity(12));
-
-    println!("Inverse: {}", d1.inverse());
-
-    println!("Order: {}", d1.order());
-
-    let d3 = GroupGenerators::generate_dihedral_group(3)?;
-
-    for element in d3.elements {
-        println!("Dihedral Element: {}", element);
-    }
-
-
+        match Coset::new(b, &group) {
+            Ok(_) => println!("success"),
+            Err(e) => println!("failed for: {}", e)
+        }
 
 
     Ok(())
