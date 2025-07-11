@@ -10,6 +10,10 @@ use absagl::groups::GroupElement;
 use absagl::groups::permutation::Permutation;
 use absagl::groups::modulo::Modulo;
 use absagl::groups::FiniteGroup;
+use absagl::groups::Multiplicative;
+use absagl::groups::{Additive};
+use absagl::utils;
+use rayon::result;
 
 
 
@@ -24,19 +28,44 @@ use log::{info, warn, error, debug};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init(); // Initialize the logger
 
-        let a = Modulo::new(0, 3).expect("Failed to create Modulo element");
-        let b = Modulo::new(1, 3).expect("Failed to create Modulo element");
+    let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
+    let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
 
-        let group = FiniteGroup::new(vec![a, b]);
-        println!("is group closed: {:?}", group.is_closed());
+    let group = FiniteGroup::new(vec![a, b]);
+    println!("is group closed: {:?}", group.is_closed());
 
 
-        // let coset1 = Coset::new(b, &group).expect("msg");
+    // let coset1 = Coset::new(b, &group).expect("msg");
 
-        match Coset::new(b, &group) {
-            Ok(_) => println!("success"),
-            Err(e) => println!("failed for: {}", e)
-        }
+    match Coset::new(b, &group) {
+        Ok(_) => println!("success"),
+        Err(e) => println!("failed for: {}", e)
+    }
+
+
+    let a = 46 as i64;
+    let b = 17 as i64;
+    let result = utils::extended_gcd(a, b);
+    println!("result is {:?}", result);
+
+
+    let inverse = utils::modular_inverse(17, 46).unwrap();
+    println!("inverse is {}", inverse);
+
+    // let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
+    // let b = Modulo::<Multiplicative>::new(1, 3).expect("Failed to create Modulo element");
+
+    // let result = a.op(&b);
+    // println!("result is {:?}", result);
+
+    // let group = Modulo::<Additive>::generate_group(5);
+    // println!("the group is {:?}", group);
+
+    let group = Modulo::<Multiplicative>::generate_group(4);
+    println!("the group is {:?}", group);
+
+    let group = Modulo::<Additive>::generate_group(4);
+    println!("the group is {:?}", group);
 
 
     Ok(())

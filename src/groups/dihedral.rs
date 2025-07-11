@@ -81,7 +81,6 @@ impl DihedralElement {
     pub fn new(rotation: usize, reflection: bool, n: usize) -> Result<Self, AbsaglError> {
         if n == 0 {
             log::error!("Size cannot be zero");
-            // return Err(DihedralError::SizeCannotBeZero);
         }
         Ok(DihedralElement {
             rotation,
@@ -130,11 +129,11 @@ impl DihedralElement {
         }
     }
 
-    /// Generate the dihedral group elements for a polygon with n sides.
-    pub fn generate(n: usize) -> Result<Vec<Self>, DihedralError> {
+    /// Generate a whole dihedral group .
+    pub fn generate_group(n: usize) -> Result<Vec<Self>, AbsaglError> {
         if n == 0 {
             log::error!("Size cannot be zero");
-            return Err(DihedralError::SizeCannotBeZero);
+            return Err(DihedralError::SizeCannotBeZero)?;
         }
 
         let mut elements = Vec::new();

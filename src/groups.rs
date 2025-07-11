@@ -9,6 +9,21 @@ use std::error::Error;
 
 use crate::error::AbsaglError;
 
+
+/// A marker for additive group operations.
+#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Additive;
+
+/// A marker for multiplicative group operations.
+#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Multiplicative;
+
+
+
+
+
+
+
 /// A trait representing a group element, it can be finite or cost.
 pub trait GroupElement: Clone + PartialEq {
     type Error;
@@ -53,7 +68,7 @@ pub trait Group<T: GroupElement> {
 }
 
 
-// A generic group struct holding elements of type T
+/// A generic group struct holding elements of type T
 #[derive(Debug, Clone)]
 pub struct FiniteGroup<T: GroupElement> {
     pub elements: Vec<T>,
@@ -166,12 +181,20 @@ impl Error for GroupError {}
 pub struct GroupGenerators;
 
 impl GroupGenerators {
-    /// Generates a dihedral group
-    pub fn generate_modulo_group(n: usize) -> Result<FiniteGroup<modulo::Modulo>, AbsaglError> {
+    /// Generates a modulo group with additive operation
+    pub fn generate_modulo_group_add(n: usize) -> Result<FiniteGroup<modulo::Modulo<Additive>>, AbsaglError> {
         // This function can be used to generate a modulo group
         // Example: Modulo::generate_group(3);
         // You can implement this in the modulo module
-        let elements = modulo::Modulo::generate_group(n as u64)?;
+        let elements = modulo::Modulo::<Additive>::generate_group(n as u64)?;
+        Ok(FiniteGroup::new(elements))
+    }
+    /// Generates a modulo group with Multiplicative operation
+    pub fn generate_modulo_group_mul(n: usize) -> Result<FiniteGroup<modulo::Modulo<Multiplicative>>, AbsaglError> {
+        // This function can be used to generate a modulo group
+        // Example: Modulo::generate_group(3);
+        // You can implement this in the modulo module
+        let elements = modulo::Modulo::<Multiplicative>::generate_group(n as u64)?;
         Ok(FiniteGroup::new(elements))
     }
     /// Generates permutation groups
@@ -191,11 +214,11 @@ impl GroupGenerators {
         Ok(FiniteGroup::new(elements))
     }
     /// Generates dihedral groups
-    pub fn generate_dihedral_group(n: usize) -> Result<FiniteGroup<dihedral::DihedralElement>, dihedral::DihedralError> {
+    pub fn generate_dihedral_group(n: usize) -> Result<FiniteGroup<dihedral::DihedralElement>, AbsaglError> {
         // This function can be used to generate a dihedral group
         // Example: DihedralElement::generate(3);
         // You can implement this in the dihedral module
-        let elements = dihedral::DihedralElement::generate(n)?;
+        let elements = dihedral::DihedralElement::generate_group(n)?;
         Ok(FiniteGroup::new(elements))
         
     }
