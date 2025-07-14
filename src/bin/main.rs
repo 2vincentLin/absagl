@@ -68,5 +68,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("the group is {:?}", group);
 
 
+    let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
+    let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
+
+    let group1 = FiniteGroup::new(vec![a, b]);
+    let group2= FiniteGroup::new(vec![b, a]);
+
+    if group1 == group2 {
+        println!("they are equal");
+    } else {
+        println!("they are not equal");
+    }
+
+
     Ok(())
 }

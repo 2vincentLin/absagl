@@ -33,14 +33,14 @@ impl Error for ModuloError {}
 
 /// Modulo struct for add/mul, Op can be Additive, Multiplicative,
 /// call it with Modulo::<Additive>::method()
-#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Modulo<Op> {
     value: u64,
     modulus: u64,
     _marker: PhantomData<Op>,
 }
 
-/// Defines properties associated with a group operation.
+/// Defines properties associated with a modulo group operation.
 pub trait ModuloOperation : Sized where Modulo<Self>: GroupElement {
     /// The identity element for the operation (e.g., 0 for addition, 1 for multiplication).
     fn identity() -> u64;
@@ -52,7 +52,7 @@ pub trait ModuloOperation : Sized where Modulo<Self>: GroupElement {
         let _ = modulus;
         true
     }
-    // generate the whole group based on the operation
+    /// generate the whole group based on the operation
     fn generate_group(modulus: u64) -> Result<Vec<Modulo<Self>>, AbsaglError>;
     
 }
@@ -149,6 +149,18 @@ impl GroupElement for Modulo<Multiplicative> {
 }
 
 
+// impl<Op> GroupElement for Modulo<Op> 
+// where 
+//     Op: ModuloOperation
+// {
+
+// }
+
+// impl Modulo<Additive> {
+    
+// }
+
+
 impl<Op> Modulo<Op> where Modulo<Op>: GroupElement {
 
     /// Create a new Modulo element
@@ -222,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn test_modulo_add_create_fail_not_member() {
+    fn test_modulo_mul_create_fail_not_member() {
         let result = Modulo::<Multiplicative>::new(2, 4);
         match result {
             // you can use Err(AbsaglError::Modulo(_)) too

@@ -12,6 +12,7 @@ use super::{Additive, Multiplicative};
 
 use std::fmt;
 use std::marker::PhantomData;
+use std::hash::{Hash,Hasher};
 
 
 #[derive(Debug, PartialEq)]
@@ -51,9 +52,21 @@ impl<'a, T: GroupElement> PartialEq for Coset<'a, T> {
 }
 impl<'a, T: GroupElement> Eq for Coset<'a, T> {}
 
+impl<'a, T: GroupElement> Hash for Coset<'a, T> 
+where 
+    T: Ord,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // A coset's identity is defined by its representative and the subgroup.
+        // We combine their hashes to get a unique hash for the coset.
+        self.representative.hash(state);
+        self.normal_subgroup.hash(state);
+    }
+}
+
 // Now, implement the core group operations for the Coset.
 // This is where the magic happens! The logic is generic.
-impl<'a, T: GroupElement> GroupElement for Coset<'a, T> {
+impl<'a, T: GroupElement + Ord> GroupElement for Coset<'a, T> {
     type Error = T::Error; // Or a new error type
 
     /// Operation for cosets: (aN)(bN) = (ab)N
@@ -145,7 +158,7 @@ pub struct FactorGroup<'a, T: GroupElement> {
     normal_subgroup: &'a FiniteGroup<T>,
 }
 
-impl<'a, T: GroupElement> Group<Coset<'a, T>> for FactorGroup<'a, T> {
+impl<'a, T: GroupElement + Ord> Group<Coset<'a, T>> for FactorGroup<'a, T> {
     /// The group operation for cosets is (aN)(bN) = (ab)N.
     fn operate(&self, a: &Coset<'a, T>, b: &Coset<'a, T>) -> Coset<'a, T> {
         Coset {
@@ -167,7 +180,6 @@ impl<'a, T: GroupElement> Group<Coset<'a, T>> for FactorGroup<'a, T> {
     /// The identity element of the factor group is the coset eN.
     fn identity(&self) -> Coset<'a, T> {
         Coset {
-            // Assumes FiniteGroup has an identity() method
             representative: self.group.identity(),
             normal_subgroup: self.normal_subgroup,
             _marker: PhantomData,

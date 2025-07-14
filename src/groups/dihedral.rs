@@ -31,7 +31,7 @@ impl Error for DihedralError {}
 
 
 
-#[derive(Copy, Clone, PartialEq, Debug, Eq)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
 pub struct DihedralElement {
     rotation: usize, // Number of rotations
     reflection: bool, // Whether the element is a reflection

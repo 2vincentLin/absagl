@@ -6,16 +6,18 @@ pub mod factor;
 
 use std::fmt;
 use std::error::Error;
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 
 use crate::error::AbsaglError;
 
 
 /// A marker for additive group operations.
-#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Additive;
 
 /// A marker for multiplicative group operations.
-#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Multiplicative;
 
 
@@ -25,7 +27,7 @@ pub struct Multiplicative;
 
 
 /// A trait representing a group element, it can be finite or cost.
-pub trait GroupElement: Clone + PartialEq {
+pub trait GroupElement: Clone + PartialEq + Eq + Hash {
     type Error;
     /// The group operation (usually denoted as *)
     fn op(&self, other: &Self) -> Self;
@@ -147,12 +149,98 @@ impl<T: GroupElement> FiniteGroup<T> {
         for g in &self.elements {
             for h in &subgroup.elements {
                 let conjugate = g.op(h).op(&g.inverse());
-                if !self.elements.contains(&conjugate) {
+                if !subgroup.elements.contains(&conjugate) {
                     return false;
                 }
             }
         }
         true
+    }
+
+
+    /// generate a normal subgroup given Vec<T>, it'll return error if the generete subgroup is equal to the whole group, 
+    /// or the subgroup is not a normal subgroup in the whole group
+    pub fn generate_normal_subgroup(&self, generators: Vec<T>) -> Result<FiniteGroup<T>, AbsaglError> {
+        // 1. Initialize
+        let mut subgroup_elements = HashSet::new();
+        subgroup_elements.insert(self.identity()); // Start with the identity
+
+        let mut queue: Vec<T> = Vec::new();
+
+        // Add initial generators
+        for g in generators {
+            if subgroup_elements.insert(g.clone()) {
+                queue.push(g);
+            }
+        }
+
+        // 2. Loop and Close
+        while let Some(g) = queue.pop() {
+            // Use a copy of the elements to avoid borrowing issues
+            let current_elements: Vec<T> = subgroup_elements.iter().cloned().collect();
+
+            for h in current_elements {
+                let product = self.operate(&g, &h); // Assuming self.op performs the group operation
+
+                // 3. If a new element is found, add it to the set and the queue
+                if subgroup_elements.insert(product.clone()) {
+                    queue.push(product);
+                }
+            }
+        }
+
+        let subgroup_elements: Vec<T> = subgroup_elements.into_iter().collect();
+
+     
+        if subgroup_elements.len() == self.elements.len() {
+            log::error!("The generated subgroup is the whole group");
+            return Err(GroupError::NotSubgroup)?
+        }
+
+        let subgroup = FiniteGroup::new(subgroup_elements);
+
+        if !self.is_normal(&subgroup) {
+            log::error!("The generated subgroup is not normal in whole group");
+            return Err(GroupError::NotAbelian)?
+        }
+
+
+
+
+        // 4. Return the new group from the final set of elements
+        Ok(subgroup)
+
+    }
+}
+
+impl<T: GroupElement> PartialEq for FiniteGroup<T> {
+    fn eq(&self, other: &Self) -> bool {
+        // Two groups are equal if they have the same number of elements
+        // and the same set of elements. Using HashSets is a great way
+        // to compare the elements while ignoring order.
+
+        if self.elements.len() != other.elements.len() {
+            return false;
+        }
+
+        let self_set: HashSet<_> = self.elements.iter().cloned().collect();
+        let other_set: HashSet<_> = other.elements.iter().cloned().collect();
+
+        self_set == other_set
+    }
+}
+
+// Don't forget to add this boilerplate impl for Eq
+impl<T: GroupElement> Eq for FiniteGroup<T> {}
+
+
+impl<T: GroupElement + Ord> Hash for FiniteGroup<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // To create a consistent hash, we must sort the elements first.
+        // This requires T to implement the `Ord` trait.
+        let mut sorted_elements = self.elements.clone();
+        sorted_elements.sort();
+        sorted_elements.hash(state);
     }
 }
 
@@ -161,6 +249,8 @@ impl<T: GroupElement> FiniteGroup<T> {
 pub enum GroupError {
     NotClosed,
     NotAbelian, // this is for abelian group
+    NotSubgroup,
+    
     // some operation error
 }
 
@@ -169,6 +259,7 @@ impl fmt::Display for GroupError {
         match self {
             GroupError::NotClosed => write!(f, "This group is not closed"),
             GroupError::NotAbelian => write!(f, "This group is not abelian"),
+            GroupError::NotSubgroup => write!(f, "The generated subgroup equal to whole group"),
             
         }
     }
@@ -222,4 +313,159 @@ impl GroupGenerators {
         Ok(FiniteGroup::new(elements))
         
     }
+}
+
+
+
+
+#[cfg(test)]
+mod tests {
+
+    // Import the necessary modules and traits
+    use super::*;
+    use crate::groups::modulo::Modulo;
+    use crate::groups::permutation::Permutation;
+
+    #[test]
+    fn test_is_closed_true() {
+        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
+        let c = Modulo::<Additive>::new(2, 3).expect("Failed to create Modulo element");
+
+        let group = FiniteGroup::new(vec![a, b, c]);
+
+        assert!(group.is_closed());
+    }
+
+    #[test]
+    fn test_is_closed_false() {
+        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
+
+        let group = FiniteGroup::new(vec![a, b]);
+        assert!(!group.is_closed());
+    }
+
+    #[test]
+    fn test_is_abelian_true() {
+        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
+        let c = Modulo::<Additive>::new(2, 3).expect("Failed to create Modulo element");
+
+        let group = FiniteGroup::new(vec![a, b, c]);
+
+        assert!(group.is_abelian());
+    }
+
+    #[test]
+    fn test_is_abelian_false() {
+        let s3 = GroupGenerators::generate_permutation_group(3).expect("Failed to generate S3 group");
+        assert!(!s3.is_abelian());
+    }
+
+    #[test]
+    fn test_generate_normal_subgroup_fail_not_subgroup() {
+        let group = GroupGenerators::generate_modulo_group_add(5).unwrap();
+        let g1 = Modulo::new(1,5).unwrap();
+
+        let result = group.generate_normal_subgroup(vec![g1]);
+
+        // println!("result is: {:?}", &result.unwrap());
+
+        match result {
+            Err(AbsaglError::Group(GroupError::NotSubgroup)) => {
+                // pass
+            }
+            _ => panic!("Expected Err(AbsaglError::Group(GroupError::NotSubgroup)), but got {:?}", result),
+
+        }
+        
+    }
+
+
+    #[test]
+    fn test_generate_normal_subgroup_success() {
+        let group = GroupGenerators::generate_modulo_group_add(6).unwrap();
+        let g2 = Modulo::new(2,6).unwrap();
+
+        let result = group.generate_normal_subgroup(vec![g2]);
+
+        // println!("result is: {:?}", &result.unwrap());
+
+
+
+        match result {
+            Ok(group) => {
+                let g0 = Modulo::new(0,6).unwrap();
+                let g2 = Modulo::new(2,6).unwrap();
+                let g4 = Modulo::new(4,6).unwrap();
+                let expected = FiniteGroup::new(vec![g0,g2,g4]);
+                assert_eq!(group, expected);
+                // pass
+            }
+            _ => panic!("Expected Err(AbsaglError::Group(GroupError::NotSubgroup)), but got {:?}", result),
+
+        }
+        
+    }
+
+    #[test]
+    fn test_generate_normal_subgroup_fail_not_normal() {
+        let group = GroupGenerators::generate_permutation_group(3).unwrap();
+        let g1 = Permutation::from_cycles(&vec![vec![0,1]], 3).unwrap();
+
+        let result = group.generate_normal_subgroup(vec![g1]);
+
+        
+        match result {
+            Err(AbsaglError::Group(GroupError::NotAbelian)) => {
+                // pass
+            }
+            _ => panic!("Expected Err(AbsaglError::Group(GroupError::NotAbelian)), but got {:?}", result),
+
+        }
+        
+    }
+
+
+    #[test]
+    fn test_modulo_group_equal_success() {
+        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
+
+        let group1 = FiniteGroup::new(vec![a, b]);
+        let group2= FiniteGroup::new(vec![b, a]);
+        assert_eq!(group1, group2);
+    }
+
+    #[test]
+    fn test_modulo_group_equal_fail() {
+        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
+
+        let group1 = FiniteGroup::new(vec![a, b]);
+        let group2= FiniteGroup::new(vec![b]);
+        assert_ne!(group1, group2);
+    }
+
+    #[test]
+    fn test_permutation_group_equal_success() {
+        let a = Permutation::from_cycles(&vec![vec![0,2], vec![1,3]], 4).unwrap();
+        let b = Permutation::from_cycles(&vec![vec![1,3], vec![0,2]], 4).unwrap();
+
+        let group1 = FiniteGroup::new(vec![a.clone(), b.clone()]);
+        let group2= FiniteGroup::new(vec![b, a]);
+        assert_eq!(group1, group2);
+    }
+
+     #[test]
+    fn test_permutation_group_equal_fail() {
+        let a = Permutation::from_cycles(&vec![vec![0,2], vec![1,3]], 4).unwrap();
+        let b = Permutation::from_cycles(&vec![vec![1,3], vec![0,2]], 4).unwrap();
+
+        let group1 = FiniteGroup::new(vec![a.clone(), b.clone()]);
+        let group2= FiniteGroup::new(vec![b]);
+        assert_ne!(group1, group2);
+    }
+
 }

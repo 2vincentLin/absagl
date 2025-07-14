@@ -6,6 +6,8 @@ use std::fmt;
 use std::ops::Mul;
 use std::ops::Deref;
 use std::error::Error;
+use std::hash::{Hash, Hasher};
+
 
 #[derive(Debug)]
 pub enum PermutationError {
@@ -39,7 +41,7 @@ impl Error for PermutationError {}
 
 /// A standard way to represent permutation in many computational group theory libraries
 /// it is a vector of indices, where the value at each index represents the image of that
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Eq, Hash)]
 pub struct Permutation {
     mapping: Vec<usize>,
 }
@@ -49,7 +51,7 @@ impl GroupElement for Permutation {
     /// Perform the operation of two permutations
     /// this is not safe, it will panic if the sizes of the two permutations are not equal
     fn op(&self, other: &Self) -> Self {
-        assert_eq!(self.mapping.len(), other.mapping.len());
+        assert_eq!(self.mapping.len(), other.mapping.len(), "permutation op fail");
         let mapping = other.mapping.iter().map(|&i| self.mapping[i]).collect();
         Permutation { mapping }
     }
@@ -294,7 +296,7 @@ impl<'a, 'b> Mul<&'b Permutation> for &'a Permutation {
 
 /// Create an Alternating Group Element from a Permutation
 /// An alternating group is a subgroup of the symmetric group consisting of all even permutations.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Eq, Hash)]
 pub struct AlternatingGroupElement {
     permutation: Permutation,
 }
@@ -390,7 +392,7 @@ impl fmt::Display for AlternatingGroupElement {
 
 /// using HashMap to represent sparse permutation
 /// this is useful when the permutation is sparse, i.e. only a few elements are perm
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Eq)]
 pub struct SparsePerm {
     pub mapping: HashMap<usize, usize>,
 }
@@ -485,6 +487,25 @@ impl fmt::Display for SparsePerm {
         }
     }
 }
+
+
+impl Hash for SparsePerm {
+    /// we need to implement Hash for SparePem because we cannot derive Hash on a struct contain `HashMap`
+    /// the reaons is for any two HashMap, even if they have same key and value, 
+    /// it still has another RandomState, so we can't have same hash value
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // 1. Collect the key-value pairs into a vector.
+        let mut pairs: Vec<_> = self.mapping.iter().collect();
+
+        // 2. Sort the vector by key to ensure a deterministic order.
+        //    This is the most important step!
+        pairs.sort_unstable_by_key(|&(k, _)| k);
+
+        // 3. Now hash the sorted vector.
+        pairs.hash(state);
+    }
+}
+
 
 // endregion
 
