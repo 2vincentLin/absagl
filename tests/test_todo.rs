@@ -3,7 +3,52 @@ use absagl::groups::permutation::Permutation;
 use absagl::groups::permutation::SparsePerm;
 use absagl::groups::GroupElement;
 
+///
+/// 
+/// 
+/// 
+/// 
+/// 
+/// 
+/// 
+/// 
+/// 
 
+
+// add test hash to each test mod
+// use std::collections::hash_map::DefaultHasher;
+// use std::hash::{Hash, Hasher};
+
+// // Helper function to calculate the hash of any hashable type.
+// fn calculate_hash<T: Hash>(t: &T) -> u64 {
+//     let mut s = DefaultHasher::new();
+//     t.hash(&mut s);
+//     s.finish()
+// }
+// use std::collections::HashSet;
+
+// #[test]
+// fn test_coset_in_hashset() {
+//     // 1. Setup: Same as before.
+//     let g = dihedral_group(3);
+//     let n = g.get_subgroup_by_name("A3");
+//     let rep1 = g.get_element_by_name("f0");
+//     let coset1 = Coset { representative: rep1, ... };
+//     let rep2 = g.get_element_by_name("f1");
+//     let coset2 = Coset { representative: rep2, ... };
+
+//     // Sanity check that they are indeed equal.
+//     assert_eq!(coset1, coset2);
+
+//     // 2. Use a HashSet.
+//     let mut set = HashSet::new();
+//     set.insert(coset1);
+
+//     // 3. Check for the second coset and the set's length.
+//     //    If hash/eq were wrong, contains() might be false and len() might become 2.
+//     assert!(set.contains(&coset2), "Set should contain the equivalent coset");
+//     assert_eq!(set.len(), 1, "Set should only contain one unique coset");
+// }
 
 #[cfg(test)]
 mod test_sparse_permutation {

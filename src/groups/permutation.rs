@@ -1,4 +1,4 @@
-use crate::groups::{GroupElement};
+use crate::groups::{GroupElement, CanonicalRepr};
 use crate::utils;
 use crate::error::AbsaglError;
 use std::collections::{HashMap, HashSet};
@@ -291,6 +291,18 @@ impl<'a, 'b> Mul<&'b Permutation> for &'a Permutation {
 
     fn mul(self, rhs: &'b Permutation) -> Self::Output {
         self.op(rhs)
+    }
+}
+
+
+impl CanonicalRepr for Permutation {
+    fn to_canonical_bytes(&self) -> Vec<u8> {
+        // The one-line notation is already a perfect canonical form.
+        // We just need to convert it to bytes.
+        self.mapping
+            .iter()
+            .flat_map(|&x| x.to_be_bytes())
+            .collect()
     }
 }
 
@@ -600,6 +612,15 @@ mod test_permutaion {
         assert_eq!(order, 6, "The order of the permutation should be 6");
     }
 
+    #[test]
+    fn test_to_canonical_bytes() {
+        let a = Permutation::new(vec![0,1]).expect("should create permutation");
+        println!("canonical form: {:?}", a.to_canonical_bytes());
+        let b : Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        assert_eq!(a.to_canonical_bytes(),b);
+    
+    }
+
 }
 
 
@@ -671,6 +692,17 @@ mod test_alternating_group_element {
         let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
         let order = ag.order();
         assert_eq!(order, 2, "The order of the alternating group element should be 2");
+    }
+
+    #[test]
+    fn test_to_canonical_bytes() {
+        let p = Permutation::from_cycles(&vec![vec![0,1,2]],3).expect("should create permutation");
+        println!("p: {}", &p);
+        let a = AlternatingGroupElement::new(p).expect("fail to create altenative");
+        println!("canonical form: {:?}", a.to_canonical_bytes());
+        let b : Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0];
+        assert_eq!(a.to_canonical_bytes(),b);
+    
     }
 
     

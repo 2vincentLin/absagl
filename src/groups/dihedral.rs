@@ -2,7 +2,7 @@ use std::fmt;
 use std::error::Error;
 
 use crate::error::AbsaglError;
-use crate::groups::GroupElement;
+use crate::groups::{GroupElement, CanonicalRepr};
 use crate::utils;
 
 
@@ -180,7 +180,24 @@ impl fmt::Display for DihedralElement {
     }
 }
 
+impl CanonicalRepr for DihedralElement {
+    fn to_canonical_bytes(&self) -> Vec<u8> {
+        // Use a consistent endianness, like big-endian (to_be_bytes),
+        // which is a common convention for canonical forms.
+        let rotation_bytes = self.rotation.to_be_bytes();
+        let reflection_byte = if self.reflection { 1u8 } else { 0u8 };
+        let n_bytes = self.n.to_be_bytes();
 
+        // Concatenate the byte arrays into a single, flat Vec<u8>.
+        // concat() will create a owned data so we are not return borrowed data
+        [
+            &rotation_bytes[..],
+            &[reflection_byte],
+            &n_bytes[..],
+        ]
+        .concat()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -233,5 +250,12 @@ mod tests {
         let c = a.op(&b);
         assert_eq!(c.rotation, 3);
         assert!(c.reflection);
+    }
+
+    #[test]
+    fn test_to_canonical_bytes() {
+        let d1 = DihedralElement::new(1, false,9).unwrap();
+        let expected: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 9];
+        assert_eq!(d1.to_canonical_bytes(), expected);
     }
 }

@@ -5,6 +5,7 @@ use super::Group;
 use super::GroupError;
 use super::FiniteGroup;
 use super::GroupElement;
+use super::CanonicalRepr;
 use super::{Additive, Multiplicative};
 
 
@@ -45,6 +46,10 @@ pub struct Coset<'a, T: GroupElement> {
 /// Equality for cosets: aN == bN if and only if a⁻¹b ∈ N.
 impl<'a, T: GroupElement> PartialEq for Coset<'a, T> {
     fn eq(&self, other: &Self) -> bool {
+        // 1st check if the underlying normal subgroup equal 
+        if self.normal_subgroup != other.normal_subgroup {
+            return false;
+        }
         let a_inv = self.representative.inverse();
         let a_inv_b = a_inv.op(&other.representative);
         self.normal_subgroup.elements.contains(&a_inv_b)
@@ -54,19 +59,26 @@ impl<'a, T: GroupElement> Eq for Coset<'a, T> {}
 
 impl<'a, T: GroupElement> Hash for Coset<'a, T> 
 where 
-    T: Ord,
+    T: CanonicalRepr,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // A coset's identity is defined by its representative and the subgroup.
-        // We combine their hashes to get a unique hash for the coset.
-        self.representative.hash(state);
+        // Find the element in the coset with the "smallest" canonical form.
+        let canonical_rep = self.normal_subgroup.elements.iter()
+            .map(|h| self.representative.op(h)) 
+            .min_by(|a, b| a.to_canonical_bytes().cmp(&b.to_canonical_bytes()))
+            .unwrap(); // Assumes coset is not empty
+
+        // Hash the canonical representative's bytes.
+        canonical_rep.to_canonical_bytes().hash(state);
+
+        // Also hash the subgroup itself.
         self.normal_subgroup.hash(state);
     }
 }
 
 // Now, implement the core group operations for the Coset.
 // This is where the magic happens! The logic is generic.
-impl<'a, T: GroupElement + Ord> GroupElement for Coset<'a, T> {
+impl<'a, T: GroupElement + CanonicalRepr> GroupElement for Coset<'a, T> {
     type Error = T::Error; // Or a new error type
 
     /// Operation for cosets: (aN)(bN) = (ab)N
@@ -103,7 +115,7 @@ impl<'a, T: GroupElement + Ord> GroupElement for Coset<'a, T> {
 }
 
 
-impl<'a, T: GroupElement> Coset<'a, T> {
+impl<'a, T: GroupElement + CanonicalRepr> Coset<'a, T> {
 
 
     /// create a coset, will check if the normal subgroup is abelian
@@ -148,6 +160,22 @@ impl<'a, T: GroupElement> Coset<'a, T> {
         FiniteGroup::new(elements)
     }
 
+    /// Finds the canonical representative of the coset.
+    /// This is the element in the coset with the lexicographically smallest
+    /// canonical byte representation.
+    pub fn get_canonical_representative(&self) -> T {
+        self.normal_subgroup
+            .elements
+            .iter()
+            // Generate all elements of the coset: { self.representative * h }
+            .map(|h| self.representative.op(h)) 
+            // Find the one with the "smallest" canonical representation
+            .min_by(|a, b| a.to_canonical_bytes().cmp(&b.to_canonical_bytes()))
+            .unwrap() // A coset is never empty, so this is safe
+    }
+
+
+
 }
 
 
@@ -158,7 +186,7 @@ pub struct FactorGroup<'a, T: GroupElement> {
     normal_subgroup: &'a FiniteGroup<T>,
 }
 
-impl<'a, T: GroupElement + Ord> Group<Coset<'a, T>> for FactorGroup<'a, T> {
+impl<'a, T: GroupElement + CanonicalRepr> Group<Coset<'a, T>> for FactorGroup<'a, T> {
     /// The group operation for cosets is (aN)(bN) = (ab)N.
     fn operate(&self, a: &Coset<'a, T>, b: &Coset<'a, T>) -> Coset<'a, T> {
         Coset {
@@ -229,6 +257,30 @@ impl<'a, T: GroupElement + Ord> Group<Coset<'a, T>> for FactorGroup<'a, T> {
 }
 
 
+impl<'a,T: GroupElement + CanonicalRepr> FactorGroup<'a,T> {
+    /// given two FiniteGroup<T>, it'll return a FactorGroup<'a,T> if the both groups are closed.
+    /// subgroup is normal in group and both group order is different.
+    pub fn new(group: &'a FiniteGroup<T>, subgroup: &'a FiniteGroup<T>) -> Result<FactorGroup<'a, T>, AbsaglError> {
+        if !group.is_closed() || !subgroup.is_closed() {
+            log::error!("one of the group/subgroup is not closed");
+            return Err(GroupError::NotClosed)?;
+        }
+
+        if !group.is_normal(subgroup) {
+            log::error!("subgroup is not normal in group");
+            return Err(GroupError::NotNormalSubgroup)?;
+        }
+
+        if group.order() == subgroup.order() {
+            log::error!("the order of group and its subgroup is equal");
+            return Err(GroupError::NotSubgroup)?;
+        }
+
+        Ok(FactorGroup { group: group, normal_subgroup: subgroup })
+    }
+}
+
+
 #[cfg(test)]
 mod test_coset{
 
@@ -256,7 +308,7 @@ mod test_coset{
 
     
     #[test]
-    fn test_coset_eq() {
+    fn test_coset_eq_success() {
         let a = Modulo::<Additive>::new(2, 6).expect("should create element");
 
         let e  = Modulo::<Additive>::new(0, 6).expect("should create element");
@@ -279,6 +331,33 @@ mod test_coset{
 
         assert!(coset1==coset2, "different representative should be equal");
 
+    }
+
+    #[test]
+    fn test_coset_eq_fail() {
+
+        let e = Modulo::<Additive>::new(0, 8).expect("should create element");
+        let a = Modulo::<Additive>::new(2, 8).expect("should create element");
+        let b = Modulo::<Additive>::new(4, 8).expect("should create element");
+        let c = Modulo::<Additive>::new(6, 8).expect("should create element");
+
+
+        let group1 = FiniteGroup::new(vec![e,a,b,c]);
+        let group2 = FiniteGroup::new(vec![e,b]);
+
+        let coset1 = Coset {
+            representative: b,
+            normal_subgroup: &group1,
+            _marker: PhantomData,
+        };
+
+        let coset2 = Coset {
+            representative: b,
+            normal_subgroup: &group2,
+            _marker: PhantomData,
+        };
+
+        assert!(coset1!=coset2, "different normal subgroup should not equal");
     }
 
     #[test]
@@ -370,6 +449,23 @@ mod test_coset{
 
 
     }
+
+    #[test]
+    fn test_coset_get_canonical_representative() {
+        let e = Modulo::<Additive>::new(0, 8).expect("should create element");
+        let a = Modulo::<Additive>::new(2, 8).expect("should create element");
+        let b = Modulo::<Additive>::new(4, 8).expect("should create element");
+        let c = Modulo::<Additive>::new(6, 8).expect("should create element");
+
+        let group = FiniteGroup::new(vec![e,a,b,c]);
+        let coset1 = Coset::new(a, &group).unwrap();
+
+        assert_eq!(e, coset1.get_canonical_representative());
+
+    }
+
+
+
 }
 
 #[cfg(test)]

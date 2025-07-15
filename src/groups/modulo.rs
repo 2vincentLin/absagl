@@ -1,4 +1,4 @@
-use crate::groups::{Additive, GroupElement, Multiplicative};
+use crate::groups::{Additive, GroupElement, Multiplicative, CanonicalRepr};
 use crate::utils;
 use crate::error::AbsaglError;
 
@@ -149,16 +149,17 @@ impl GroupElement for Modulo<Multiplicative> {
 }
 
 
-// impl<Op> GroupElement for Modulo<Op> 
-// where 
-//     Op: ModuloOperation
-// {
+impl<T> CanonicalRepr for Modulo<T> {
+    fn to_canonical_bytes(&self) -> Vec<u8> {
+        // Use a consistent endianness, like big-endian (to_be_bytes),
+        // which is a common convention for canonical forms.
+        let value_bytes = self.value.to_be_bytes();
+        let modulus_bytes = self.modulus.to_be_bytes();
 
-// }
-
-// impl Modulo<Additive> {
-    
-// }
+        // Concatenate the byte arrays into a single, flat Vec<u8>.
+        [value_bytes, modulus_bytes].concat()
+    }
+}
 
 
 impl<Op> Modulo<Op> where Modulo<Op>: GroupElement {
@@ -301,5 +302,13 @@ mod tests {
             },
             _ => panic!("Expected Err(AbsaglError::Modulo(ModuloError::SizeNotMatch)), but got {:?}", result),
         }
+    }
+
+    #[test]
+    fn test_go_canonical_bytes() {
+        let a = Modulo::<Additive>::new(2, 5).expect("should create permutation");
+        println!("canonical form: {:?}", a.to_canonical_bytes());
+        let b : Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 5];
+        assert_eq!(a.to_canonical_bytes(), b);
     }
 }

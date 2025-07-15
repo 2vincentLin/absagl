@@ -26,7 +26,7 @@ pub struct Multiplicative;
 
 
 
-/// A trait representing a group element, it can be finite or cost.
+/// A trait representing a group element, it can be finite or coset.
 pub trait GroupElement: Clone + PartialEq + Eq + Hash {
     type Error;
     /// The group operation (usually denoted as *)
@@ -67,6 +67,16 @@ pub trait Group<T: GroupElement> {
 
     // Checks if a subgroup of the group is normal in it
     // fn is_normal(&self, subgroup: &Group<T>) -> bool;
+}
+
+/// this trait is mainly used to return byte representation of the GroupElement.
+/// the reason we need this is because we need to put FiniteGroup<T> to HashMap.
+/// this requires the underlying Vec<T> to return orderless unique hash value,
+/// which means we need to sort the Vec<T> 1st, but we can't use sort() on the Vec<T>,
+/// because this requires the GroupElement derive Ord trait, but for Permutation, the order is meaningless.
+pub trait CanonicalRepr {
+    /// Returns a unique, stable byte representation of the element.
+    fn to_canonical_bytes(&self) -> Vec<u8>;
 }
 
 
@@ -201,7 +211,7 @@ impl<T: GroupElement> FiniteGroup<T> {
 
         if !self.is_normal(&subgroup) {
             log::error!("The generated subgroup is not normal in whole group");
-            return Err(GroupError::NotAbelian)?
+            return Err(GroupError::NotNormalSubgroup)?
         }
 
 
@@ -230,19 +240,38 @@ impl<T: GroupElement> PartialEq for FiniteGroup<T> {
     }
 }
 
-// Don't forget to add this boilerplate impl for Eq
+/// Don't forget to add this boilerplate impl for Eq
 impl<T: GroupElement> Eq for FiniteGroup<T> {}
 
+/// to impl Hash for FiniteGroup<T>, because for some GroupElement like Permutation, their don't have order.
+/// so simply derive Ord is a bad design, you don't know when it'll create a computation bug.
+// impl<T: GroupElement + Ord> Hash for FiniteGroup<T> {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         // To create a consistent hash, we must sort the elements first.
+//         // This requires T to implement the `Ord` trait.
+//         let mut sorted_elements = self.elements.clone();
+//         sorted_elements.sort();
+//         sorted_elements.hash(state);
+//     }
+// }
 
-impl<T: GroupElement + Ord> Hash for FiniteGroup<T> {
+impl<T: GroupElement + CanonicalRepr> Hash for FiniteGroup<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // To create a consistent hash, we must sort the elements first.
-        // This requires T to implement the `Ord` trait.
-        let mut sorted_elements = self.elements.clone();
-        sorted_elements.sort();
-        sorted_elements.hash(state);
+        // Create a list of the canonical byte representations.
+        let mut canonical_forms: Vec<Vec<u8>> = self
+            .elements
+            .iter()
+            .map(|elem| elem.to_canonical_bytes())
+            .collect();
+
+        // Sort these byte vectors lexicographically. This is a safe, arbitrary order.
+        canonical_forms.sort();
+
+        // Hash the sorted list of canonical forms.
+        canonical_forms.hash(state);
     }
 }
+
 
 
 #[derive(Debug, PartialEq)]
@@ -250,6 +279,7 @@ pub enum GroupError {
     NotClosed,
     NotAbelian, // this is for abelian group
     NotSubgroup,
+    NotNormalSubgroup,
     
     // some operation error
 }
@@ -259,7 +289,8 @@ impl fmt::Display for GroupError {
         match self {
             GroupError::NotClosed => write!(f, "This group is not closed"),
             GroupError::NotAbelian => write!(f, "This group is not abelian"),
-            GroupError::NotSubgroup => write!(f, "The generated subgroup equal to whole group"),
+            GroupError::NotSubgroup => write!(f, "The subgroup equal to whole group"),
+            GroupError::NotNormalSubgroup => write!(f, "The subgroup is not normal subgroup in whole group"),
             
         }
     }
@@ -418,10 +449,10 @@ mod tests {
 
         
         match result {
-            Err(AbsaglError::Group(GroupError::NotAbelian)) => {
+            Err(AbsaglError::Group(GroupError::NotNormalSubgroup)) => {
                 // pass
             }
-            _ => panic!("Expected Err(AbsaglError::Group(GroupError::NotAbelian)), but got {:?}", result),
+            _ => panic!("Expected Err(AbsaglError::Group(GroupError::NotNormalSubgroup)), but got {:?}", result),
 
         }
         
@@ -435,6 +466,8 @@ mod tests {
 
         let group1 = FiniteGroup::new(vec![a, b]);
         let group2= FiniteGroup::new(vec![b, a]);
+        println!("group1: {:?}", &group1);
+        println!("group2: {:?}", &group2);
         assert_eq!(group1, group2);
     }
 
@@ -453,19 +486,38 @@ mod tests {
         let a = Permutation::from_cycles(&vec![vec![0,2], vec![1,3]], 4).unwrap();
         let b = Permutation::from_cycles(&vec![vec![1,3], vec![0,2]], 4).unwrap();
 
-        let group1 = FiniteGroup::new(vec![a.clone(), b.clone()]);
-        let group2= FiniteGroup::new(vec![b, a]);
+        let group1 = FiniteGroup::new(vec![a]);
+        let group2= FiniteGroup::new(vec![b]);
         assert_eq!(group1, group2);
     }
 
      #[test]
     fn test_permutation_group_equal_fail() {
         let a = Permutation::from_cycles(&vec![vec![0,2], vec![1,3]], 4).unwrap();
-        let b = Permutation::from_cycles(&vec![vec![1,3], vec![0,2]], 4).unwrap();
+        let b = Permutation::from_cycles(&vec![vec![1,3]], 4).unwrap();
 
-        let group1 = FiniteGroup::new(vec![a.clone(), b.clone()]);
+        let group1 = FiniteGroup::new(vec![a]);
         let group2= FiniteGroup::new(vec![b]);
+        if group1 != group2 {
+            println!("not equal");
+        }
         assert_ne!(group1, group2);
     }
+
+
+    // #[test]
+    // #[should_panic] // This test is expected to fail to compile, not panic at runtime
+    // fn test_hash_for_permutation_group_fails_to_compile() {
+    //     // This test will fail to compile because Permutation does not implement Ord,
+    //     // which is required by the Hash implementation for FiniteGroup.
+    //     use std::collections::HashSet;
+
+    //     let group: FiniteGroup<Permutation> = GroupGenerators::generate_permutation_group(3).unwrap();
+    //     let mut set = HashSet::new();
+
+    //     // The line below will cause a compile-time error
+    //     // because it requires FiniteGroup<Permutation> to be hashable.
+    //     set.insert(group);
+    // }
 
 }
