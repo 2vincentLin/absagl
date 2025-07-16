@@ -47,7 +47,7 @@ pub struct Permutation {
 }
 
 impl GroupElement for Permutation {
-    type Error = AbsaglError;
+    type Error = PermutationError;
     /// Perform the operation of two permutations
     /// this is not safe, it will panic if the sizes of the two permutations are not equal
     fn op(&self, other: &Self) -> Self {
@@ -229,14 +229,28 @@ impl Permutation {
             }
         }
 
-    let mut arr: Vec<usize> = (0..n).collect();
-    let mut result = vec![];
-    heap_recursive(n, &mut arr, &mut result);
+        let mut arr: Vec<usize> = (0..n).collect();
+        let mut result = vec![];
+        heap_recursive(n, &mut arr, &mut result);
 
-    Ok(result.into_iter().map(|mapping| Permutation { mapping }).collect())
+        Ok(result.into_iter().map(|mapping| Permutation { mapping }).collect())
     }
 
+    /// Generates all elements of the alternating group A_n.
+    pub fn generate_alternative_group(n: usize) -> Result<Vec<Self>, AbsaglError> {
+        // 1. Generate the full symmetric group S_n.
+        let all_permutations = Permutation::generate_group(n)?;
 
+        // 2. Filter for even permutations and wrap them.
+        let even_permutations = all_permutations
+            .into_iter()
+            // Keep only the permutations that are even.
+            .filter(|p| p.is_even())
+            // Collect the results into a new vector.
+            .collect();
+        
+        Ok(even_permutations)
+    }
 
 }
 
@@ -305,16 +319,16 @@ impl CanonicalRepr for Permutation {
             .collect()
     }
 }
-
+// todo: remove altenative group element
 /// Create an Alternating Group Element from a Permutation
 /// An alternating group is a subgroup of the symmetric group consisting of all even permutations.
 #[derive(Clone, PartialEq, Debug, Eq, Hash)]
 pub struct AlternatingGroupElement {
-    permutation: Permutation,
+    pub permutation: Permutation,
 }
 
 impl GroupElement for AlternatingGroupElement {
-    type Error = AbsaglError;
+    type Error = PermutationError;
 
     /// Perform the operation of two alternating group elements
     /// this is not safe, it will panic if the sizes of the two permutations are not equal
@@ -571,7 +585,7 @@ mod test_permutaion {
         let b = Permutation::new(vec![0, 2, 1, 3, 4]).expect("should create element");
         let result = a.safe_op(&b);
         match result {
-            Err(AbsaglError::Permutation(PermutationError::SizeNotMatch)) => {
+            Err(PermutationError::SizeNotMatch) => {
                 // Test passes, this is the expected outcome
             },
             _ => panic!("Expected Err(PermutationError::SizeMismatch), but got {:?}", result),

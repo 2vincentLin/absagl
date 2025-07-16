@@ -4,7 +4,7 @@ pub mod dihedral;
 pub mod factor;
 
 
-use std::fmt;
+use std::fmt::{self, Debug};
 use std::error::Error;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
@@ -27,8 +27,10 @@ pub struct Multiplicative;
 
 
 /// A trait representing a group element, it can be finite or coset.
+/// the Error should derive Debug, std::error::Error, Sync, Send + 'static, 
+/// because in Coset safe_op, we need to wrap the underlying element T error 
 pub trait GroupElement: Clone + PartialEq + Eq + Hash {
-    type Error;
+    type Error: Debug + Error + Sync + Send + 'static;
     /// The group operation (usually denoted as *)
     fn op(&self, other: &Self) -> Self;
 
@@ -38,6 +40,7 @@ pub trait GroupElement: Clone + PartialEq + Eq + Hash {
     fn safe_op(&self, other: &Self) -> Result<Self, Self::Error>
         where
             Self: Sized;
+            
     
 }
 
@@ -83,7 +86,7 @@ pub trait CanonicalRepr {
 /// A generic group struct holding elements of type T
 #[derive(Debug, Clone)]
 pub struct FiniteGroup<T: GroupElement> {
-    pub elements: Vec<T>,
+    elements: Vec<T>,
 }
 
 impl<T: GroupElement> Group<T> for FiniteGroup<T> {
@@ -112,7 +115,7 @@ impl<T: GroupElement> Group<T> for FiniteGroup<T> {
 
     /// Returns the order of the group, which is the number of elements in the group
     fn order(&self) -> usize {
-        // todo: return the order of the group
+        
         self.elements.len()
         
     }
@@ -150,11 +153,22 @@ impl<T: GroupElement> Group<T> for FiniteGroup<T> {
 
 impl<T: GroupElement> FiniteGroup<T> {
     /// Creates a new group with the given elements
-    pub fn new(elements: Vec<T>) -> Self {
-        FiniteGroup { elements }
+    // pub fn new(elements: Vec<T>) -> Self {
+    //     FiniteGroup { elements }
+    // }
+
+    /// Creates a new group with the given elements, this will check if given Vec<T> is closed
+    pub fn new(elements: Vec<T>) -> Result<Self, AbsaglError> {
+
+        let group = FiniteGroup { elements };
+        if !group.is_closed() {
+            return Err(GroupError::NotClosed)?;
+        }
+
+        Ok(group)
     }
 
-    ///check if a subgroup of the group is normal in it
+    /// check if a given subgroup is normal in the group
     pub fn is_normal(&self, subgroup: &FiniteGroup<T>) -> bool {
         for g in &self.elements {
             for h in &subgroup.elements {
@@ -169,7 +183,9 @@ impl<T: GroupElement> FiniteGroup<T> {
 
 
     /// generate a normal subgroup given Vec<T>, it'll return error if the generete subgroup is equal to the whole group, 
-    /// or the subgroup is not a normal subgroup in the whole group
+    /// or the subgroup is not a normal subgroup in the whole group.
+    /// for permutation group, the given Vec<T> should come from element in altenative group (even permutationh);
+    /// for modulo<Additive>, the normal subgroup is gcd(x,n)>1
     pub fn generate_normal_subgroup(&self, generators: Vec<T>) -> Result<FiniteGroup<T>, AbsaglError> {
         // 1. Initialize
         let mut subgroup_elements = HashSet::new();
@@ -207,15 +223,12 @@ impl<T: GroupElement> FiniteGroup<T> {
             return Err(GroupError::NotSubgroup)?
         }
 
-        let subgroup = FiniteGroup::new(subgroup_elements);
+        let subgroup = FiniteGroup::new(subgroup_elements)?;
 
         if !self.is_normal(&subgroup) {
             log::error!("The generated subgroup is not normal in whole group");
             return Err(GroupError::NotNormalSubgroup)?
         }
-
-
-
 
         // 4. Return the new group from the final set of elements
         Ok(subgroup)
@@ -305,43 +318,28 @@ pub struct GroupGenerators;
 impl GroupGenerators {
     /// Generates a modulo group with additive operation
     pub fn generate_modulo_group_add(n: usize) -> Result<FiniteGroup<modulo::Modulo<Additive>>, AbsaglError> {
-        // This function can be used to generate a modulo group
-        // Example: Modulo::generate_group(3);
-        // You can implement this in the modulo module
         let elements = modulo::Modulo::<Additive>::generate_group(n as u64)?;
-        Ok(FiniteGroup::new(elements))
+        Ok(FiniteGroup::new(elements)?)
     }
     /// Generates a modulo group with Multiplicative operation
     pub fn generate_modulo_group_mul(n: usize) -> Result<FiniteGroup<modulo::Modulo<Multiplicative>>, AbsaglError> {
-        // This function can be used to generate a modulo group
-        // Example: Modulo::generate_group(3);
-        // You can implement this in the modulo module
         let elements = modulo::Modulo::<Multiplicative>::generate_group(n as u64)?;
-        Ok(FiniteGroup::new(elements))
+        Ok(FiniteGroup::new(elements)?)
     }
     /// Generates permutation groups
     pub fn generate_permutation_group(n: usize) -> Result<FiniteGroup<permutation::Permutation>, AbsaglError> {
-        // This function can be used to generate a permutation group
-        // Example: Permutation::generate_group(3);
-        // You can implement this in the permutation module
         let elements = permutation::Permutation::generate_group(n)?;
-        Ok(FiniteGroup::new(elements))
+        Ok(FiniteGroup::new(elements)?)
     }
     /// Generates alternating groups
-    pub fn generate_alternating_group(n: usize) -> Result<FiniteGroup<permutation::AlternatingGroupElement>, AbsaglError> {
-        // This function can be used to generate an alternating group
-        // Example: AlternatingGroupElement::generate_group(3);
-        // You can implement this in the permutation module
-        let elements = permutation::AlternatingGroupElement::generate_group(n)?;
-        Ok(FiniteGroup::new(elements))
+    pub fn generate_alternating_group(n: usize) -> Result<FiniteGroup<permutation::Permutation>, AbsaglError> {
+        let elements = permutation::Permutation::generate_alternative_group(n)?;
+        Ok(FiniteGroup::new(elements)?)
     }
     /// Generates dihedral groups
     pub fn generate_dihedral_group(n: usize) -> Result<FiniteGroup<dihedral::DihedralElement>, AbsaglError> {
-        // This function can be used to generate a dihedral group
-        // Example: DihedralElement::generate(3);
-        // You can implement this in the dihedral module
         let elements = dihedral::DihedralElement::generate_group(n)?;
-        Ok(FiniteGroup::new(elements))
+        Ok(FiniteGroup::new(elements)?)
         
     }
 }
@@ -363,7 +361,7 @@ mod tests {
         let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
         let c = Modulo::<Additive>::new(2, 3).expect("Failed to create Modulo element");
 
-        let group = FiniteGroup::new(vec![a, b, c]);
+        let group = FiniteGroup::new(vec![a, b, c]).expect("should create a FiniteGroup");
 
         assert!(group.is_closed());
     }
@@ -373,8 +371,14 @@ mod tests {
         let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
         let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
 
-        let group = FiniteGroup::new(vec![a, b]);
-        assert!(!group.is_closed());
+        let result = FiniteGroup::new(vec![a, b]);
+        match result {
+            Err(AbsaglError::Group(GroupError::NotClosed)) => {
+                // pass
+            }
+            _ => panic!("Expect Err(AbsaglError::Group(GroupError::NotClosed)), but got {:?}", result)
+        }
+        // assert!(!group.is_closed());
     }
 
     #[test]
@@ -383,7 +387,7 @@ mod tests {
         let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
         let c = Modulo::<Additive>::new(2, 3).expect("Failed to create Modulo element");
 
-        let group = FiniteGroup::new(vec![a, b, c]);
+        let group = FiniteGroup::new(vec![a, b, c]).expect("should create a FiniteGroup");
 
         assert!(group.is_abelian());
     }
@@ -430,7 +434,7 @@ mod tests {
                 let g0 = Modulo::new(0,6).unwrap();
                 let g2 = Modulo::new(2,6).unwrap();
                 let g4 = Modulo::new(4,6).unwrap();
-                let expected = FiniteGroup::new(vec![g0,g2,g4]);
+                let expected = FiniteGroup::new(vec![g0,g2,g4]).expect("should create a FiniteGroup");
                 assert_eq!(group, expected);
                 // pass
             }
@@ -463,9 +467,10 @@ mod tests {
     fn test_modulo_group_equal_success() {
         let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
         let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
+        let c = Modulo::<Additive>::new(2, 3).expect("Failed to create Modulo element");
 
-        let group1 = FiniteGroup::new(vec![a, b]);
-        let group2= FiniteGroup::new(vec![b, a]);
+        let group1 = FiniteGroup::new(vec![a, b, c]).expect("should create a FiniteGroup");
+        let group2 = FiniteGroup::new(vec![c, b, a]).expect("should create a FiniteGroup");
         println!("group1: {:?}", &group1);
         println!("group2: {:?}", &group2);
         assert_eq!(group1, group2);
@@ -473,31 +478,33 @@ mod tests {
 
     #[test]
     fn test_modulo_group_equal_fail() {
-        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
-        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
+        let g0 = Modulo::<Additive>::new(0, 4).expect("Failed to create Modulo element");
+        let g1 = Modulo::<Additive>::new(1, 4).expect("Failed to create Modulo element");
+        let g2 = Modulo::<Additive>::new(2, 4).expect("Failed to create Modulo element");
+        let g3 = Modulo::<Additive>::new(3, 4).expect("Failed to create Modulo element");
 
-        let group1 = FiniteGroup::new(vec![a, b]);
-        let group2= FiniteGroup::new(vec![b]);
+        let group1 = FiniteGroup::new(vec![g0, g2]).expect("should create a FiniteGroup");
+        let group2 = FiniteGroup::new(vec![g0,g1,g2,g3]).expect("should create a FiniteGroup");
         assert_ne!(group1, group2);
     }
 
     #[test]
     fn test_permutation_group_equal_success() {
-        let a = Permutation::from_cycles(&vec![vec![0,2], vec![1,3]], 4).unwrap();
-        let b = Permutation::from_cycles(&vec![vec![1,3], vec![0,2]], 4).unwrap();
+        let e = Permutation::new(vec![0,1]).unwrap();
+        let a = Permutation::new(vec![1,0]).unwrap();
 
-        let group1 = FiniteGroup::new(vec![a]);
-        let group2= FiniteGroup::new(vec![b]);
+        let group1 = FiniteGroup::new(vec![e.clone(),a.clone()]).expect("should create a FiniteGroup");
+        let group2= FiniteGroup::new(vec![a.clone(),e.clone()]).expect("should create a FiniteGroup");
         assert_eq!(group1, group2);
     }
 
      #[test]
     fn test_permutation_group_equal_fail() {
-        let a = Permutation::from_cycles(&vec![vec![0,2], vec![1,3]], 4).unwrap();
-        let b = Permutation::from_cycles(&vec![vec![1,3]], 4).unwrap();
+        let e = Permutation::new(vec![0,1]).unwrap();
+        let a = Permutation::new(vec![1,0]).unwrap();
 
-        let group1 = FiniteGroup::new(vec![a]);
-        let group2= FiniteGroup::new(vec![b]);
+        let group1 = FiniteGroup::new(vec![e.clone(),a.clone()]).expect("should create a FiniteGroup");
+        let group2= GroupGenerators::generate_permutation_group(3).unwrap();
         if group1 != group2 {
             println!("not equal");
         }

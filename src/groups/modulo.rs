@@ -86,7 +86,7 @@ impl ModuloOperation for Multiplicative {
 
 
 impl GroupElement for Modulo<Additive> {
-    type Error = AbsaglError;
+    type Error = ModuloError;
     fn op(&self, other: &Self) -> Self {
         assert_eq!(self.modulus, other.modulus, "Modulus must match for operation");
         Modulo {
@@ -106,7 +106,7 @@ impl GroupElement for Modulo<Additive> {
     fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.modulus != other.modulus {
             log::error!("Size mismatch: {} != {}", self.modulus, other.modulus);
-            Err(ModuloError::SizeNotMatch)?
+            Err(ModuloError::SizeNotMatch)
         } else {
             Ok(self.op(other))
         }
@@ -116,7 +116,7 @@ impl GroupElement for Modulo<Additive> {
 
 
 impl GroupElement for Modulo<Multiplicative> {
-    type Error = AbsaglError;
+    type Error = ModuloError;
 
     fn op(&self, other: &Self) -> Self {
         assert_eq!(self.modulus, other.modulus, "Modulus must match");
@@ -297,7 +297,7 @@ mod tests {
         let result = a.safe_op(&b);
         match result {
             // you can use Err(AbsaglError::Modulo(_)) too
-            Err(AbsaglError::Modulo(ModuloError::SizeNotMatch)) => {
+            Err(ModuloError::SizeNotMatch) => {
                 //
             },
             _ => panic!("Expected Err(AbsaglError::Modulo(ModuloError::SizeNotMatch)), but got {:?}", result),

@@ -1,5 +1,7 @@
 // In src/error.rs
 use std::fmt;
+use std::error::Error;
+
 
 #[derive(Debug)]
 pub enum AbsaglError {
@@ -8,6 +10,8 @@ pub enum AbsaglError {
     Dihedral(crate::groups::dihedral::DihedralError),
     Group(crate::groups::GroupError),
     Coset(crate::groups::factor::CosetError),
+    // this new variant to hold the generic error from T
+    Element(Box<dyn Error + Send + Sync + 'static>),
     // ... add other sub-errors
     Other(String),
 }
@@ -20,12 +24,25 @@ impl fmt::Display for AbsaglError {
             AbsaglError::Dihedral(e) => write!(f, "Diherdral error: {}", e),
             AbsaglError::Group(e) => write!(f, "Group error: {}", e),
             AbsaglError::Coset(e) => write!(f, "Coset error: {}", e),
+            AbsaglError::Element(e) => write!(f, "Underlying element error: {}", e),
             AbsaglError::Other(msg) => write!(f, "Other error: {}", msg),
         }
     }
 }
 
-impl std::error::Error for AbsaglError {}
+impl std::error::Error for AbsaglError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            AbsaglError::Modulo(e) => Some(e),
+            AbsaglError::Permutation(e) => Some(e),
+            AbsaglError::Dihedral(e) => Some(e),
+            AbsaglError::Group(e) => Some(e),
+            AbsaglError::Coset(e) => Some(e),
+            AbsaglError::Element(e) => Some(e.as_ref()),
+            AbsaglError::Other(_) => None,
+        }
+    }
+}
 
 
 impl From<crate::groups::factor::CosetError> for AbsaglError {
@@ -39,6 +56,7 @@ impl From<crate::groups::GroupError> for AbsaglError {
         AbsaglError::Group(e)
     }
 }
+
 
 impl From<crate::groups::modulo::ModuloError> for AbsaglError {
     fn from(e: crate::groups::modulo::ModuloError) -> Self {
@@ -55,5 +73,11 @@ impl From<crate::groups::permutation::PermutationError> for AbsaglError {
 impl From<crate::groups::dihedral::DihedralError> for AbsaglError {
     fn from(e: crate::groups::dihedral::DihedralError) -> Self {
         AbsaglError::Dihedral(e)
+    }
+}
+
+impl From<String> for AbsaglError {
+    fn from(e:String) -> Self {
+        AbsaglError::Other(e)
     }
 }

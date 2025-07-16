@@ -39,7 +39,7 @@ pub struct DihedralElement {
 }
 
 impl GroupElement for DihedralElement {
-    type Error = AbsaglError;
+    type Error = DihedralError;
 
     fn op(&self, other: &Self) -> Self {
         if self.n != other.n {
