@@ -27,21 +27,25 @@ pub struct Multiplicative;
 
 
 /// A trait representing a group element, it can be finite or coset.
-/// the Error should derive Debug, std::error::Error, Sync, Send + 'static, 
-/// because in Coset safe_op, we need to wrap the underlying element T error 
 pub trait GroupElement: Clone + PartialEq + Eq + Hash {
-    type Error: Debug + Error + Sync + Send + 'static;
     /// The group operation (usually denoted as *)
     fn op(&self, other: &Self) -> Self;
 
     /// The inverse of the element
     fn inverse(&self) -> Self;
-
-    fn safe_op(&self, other: &Self) -> Result<Self, Self::Error>
-        where
-            Self: Sized;
-            
     
+}
+
+
+/// An optional trait for group elements that support a fallible, checked operation.
+/// the Error should derive Debug, std::error::Error, Sync, Send + 'static, 
+/// because in Coset checked_op, we need to wrap the underlying element T error 
+pub trait CheckedOp: GroupElement {
+    /// The specific error type for this element's operation.
+    type Error: Error + Send + Sync + 'static;
+
+    /// A fallible version of the group operation.
+    fn checked_op(&self, other: &Self) -> Result<Self, Self::Error>;
 }
 
 

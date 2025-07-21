@@ -8,6 +8,7 @@ use absagl::groups::factor::FactorGroup;
 use absagl::groups::permutation::AlternatingGroupElement;
 use absagl::groups::permutation::PermutationError;
 use absagl::groups::CanonicalRepr;
+use absagl::groups::CheckedOp;
 use absagl::groups::Group;
 use absagl::groups::GroupGenerators;
 use absagl::groups::GroupElement;
@@ -46,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let coset1 = Coset::new(a, &s3, CosetSide::Left).unwrap();
     let coset2 = Coset::new(b, &s3, CosetSide::Left).unwrap();
 
-    match coset1.safe_op(&coset2) {
+    match coset1.checked_op(&coset2) {
         Ok(_) => println!("good"),
         Err(CosetError::Element(e)) => {
             println!("error is {:?}", &e);
@@ -75,28 +76,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
 
-    // let f3 = FactorGroup::new(&s3, &a3);
-    // println!("f3: {:?}", f3);
+    let f3 = FactorGroup::new(&s3, &a3);
+    println!("f3: {:?}", f3);
 
-    // let m6 = GroupGenerators::generate_modulo_group_mul(6).unwrap();
-    // println!("m6: {:?}", m6);
+    let m6 = GroupGenerators::generate_modulo_group_mul(6).unwrap();
+    println!("m6: {:?}", m6);
 
 
-    // let a = Modulo::new(1,3).unwrap();
-    // let z3 = GroupGenerators::generate_modulo_group_add(3).unwrap();
+    let a = Modulo::new(1,3).unwrap();
+    let z3 = GroupGenerators::generate_modulo_group_add(3).unwrap();
 
-    // let coset1 = Coset::new(a, &z3, CosetSide::Left).unwrap();
+    let coset1 = Coset::new(a, &z3, CosetSide::Left).unwrap();
 
-    // let b = Modulo::new(1,4).unwrap();
-    // let z4 = GroupGenerators::generate_modulo_group_add(4).unwrap();
+    let b = Modulo::new(1,4).unwrap();
+    let z4 = GroupGenerators::generate_modulo_group_add(4).unwrap();
 
-    // let coset2 = Coset::new(b, &z4, CosetSide::Left).unwrap();
+    let coset2 = Coset::new(b, &z4, CosetSide::Left).unwrap();
 
-    // match coset1.safe_op(&coset2) {
-    //     Ok(_) => println!("good"),
-    //     Err(AbsaglError::Other(e)) => println!("error is {:?}", e),
-    //     Err(e) => println!("other error: {:?}", e)
-    // }
+    match coset1.checked_op(&coset2) {
+        Ok(_) => println!("good"),
+        Err(e) => println!("other error: {:?}", e)
+    }
 
     
 

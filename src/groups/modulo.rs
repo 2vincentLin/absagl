@@ -1,4 +1,4 @@
-use crate::groups::{Additive, GroupElement, Multiplicative, CanonicalRepr};
+use crate::groups::{Additive, CanonicalRepr, CheckedOp, GroupElement, Multiplicative};
 use crate::utils;
 use crate::error::AbsaglError;
 
@@ -86,7 +86,6 @@ impl ModuloOperation for Multiplicative {
 
 
 impl GroupElement for Modulo<Additive> {
-    type Error = ModuloError;
     fn op(&self, other: &Self) -> Self {
         assert_eq!(self.modulus, other.modulus, "Modulus must match for operation");
         Modulo {
@@ -103,20 +102,12 @@ impl GroupElement for Modulo<Additive> {
             _marker: PhantomData,
         }
     }
-    fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
-        if self.modulus != other.modulus {
-            log::error!("Size mismatch: {} != {}", self.modulus, other.modulus);
-            Err(ModuloError::SizeNotMatch)
-        } else {
-            Ok(self.op(other))
-        }
-    }
+    
 }
 
 
 
 impl GroupElement for Modulo<Multiplicative> {
-    type Error = ModuloError;
 
     fn op(&self, other: &Self) -> Self {
         assert_eq!(self.modulus, other.modulus, "Modulus must match");
@@ -138,14 +129,7 @@ impl GroupElement for Modulo<Multiplicative> {
         }
     }
 
-    fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
-        if self.modulus != other.modulus {
-            log::error!("Size mismatch: {} != {}", self.modulus, other.modulus);
-            Err(ModuloError::SizeNotMatch)?
-        } else {
-            Ok(self.op(other))
-        }
-    }
+    
 }
 
 
@@ -158,6 +142,23 @@ impl<T> CanonicalRepr for Modulo<T> {
 
         // Concatenate the byte arrays into a single, flat Vec<u8>.
         [value_bytes, modulus_bytes].concat()
+    }
+}
+
+impl<Op> CheckedOp for Modulo<Op> 
+where 
+    Op: ModuloOperation,
+    Modulo<Op>: GroupElement,
+{
+    type Error = ModuloError;
+
+    fn checked_op(&self, other: &Self) -> Result<Self, Self::Error> {
+        if self.modulus != other.modulus {
+            log::error!("Size mismatch: {} != {}", self.modulus, other.modulus);
+            Err(ModuloError::SizeNotMatch)
+        } else {
+            Ok(self.op(other))
+        }
     }
 }
 
@@ -218,7 +219,7 @@ impl<Op> Modulo<Op> where Modulo<Op>: GroupElement {
 
 
 #[cfg(test)]
-mod tests {
+mod test_modulos {
 
     use super::*;
 
@@ -291,10 +292,10 @@ mod tests {
     }
 
     #[test]
-    fn test_modulo_safe_op_size_mismatch_add() {
+    fn test_modulo_checked_op_size_mismatch_add() {
         let a = Modulo::<Additive>::new(1, 5).unwrap();
         let b = Modulo::<Additive>::new(2, 6).unwrap();
-        let result = a.safe_op(&b);
+        let result = a.checked_op(&b);
         match result {
             // you can use Err(AbsaglError::Modulo(_)) too
             Err(ModuloError::SizeNotMatch) => {

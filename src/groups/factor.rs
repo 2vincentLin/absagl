@@ -1,7 +1,7 @@
 
 use crate::error::AbsaglError;
 
-use crate::groups::{Group, GroupElement, GroupError, FiniteGroup, CanonicalRepr};
+use crate::groups::{CanonicalRepr, CheckedOp, FiniteGroup, Group, GroupElement, GroupError};
 
 
 use std::fmt::{self};
@@ -95,7 +95,6 @@ where
 // Now, implement the core group operations for the Coset.
 // This is where the magic happens! The logic is generic.
 impl<'a, T: GroupElement + CanonicalRepr> GroupElement for Coset<'a, T> {
-    type Error = CosetError; // Or a new error type
 
     /// Operation for cosets: (aN)(bN) = (ab)N, will panic if left coset op right coset, and vice versa
     fn op(&self, other: &Self) -> Self {
@@ -120,8 +119,15 @@ impl<'a, T: GroupElement + CanonicalRepr> GroupElement for Coset<'a, T> {
         }
     }
     
-    /// safe operation for cosets: (aH)(bH)=(ab)H
-    fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
+    
+}
+
+
+impl<'a, T: GroupElement + CheckedOp + CanonicalRepr> CheckedOp for Coset<'a, T> {
+    type Error = CosetError;
+
+    /// A fallible version of the group operation for cosets.
+    fn checked_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.side != other.side {
             log::error!("cannot mix left/right coset for operation");
             return Err(CosetError::MixLeftAndRightCoset)?;
@@ -132,25 +138,23 @@ impl<'a, T: GroupElement + CanonicalRepr> GroupElement for Coset<'a, T> {
             return Err(CosetError::DifferentSubgroup)?;
         }
 
-        // wrap the underlying error to CosetError::Element, a standard technique to handle generic error in runtime 
-        let representative = self.representative.safe_op(&other.representative)
+        // Use the checked operation of the underlying group element
+        let representative = self.representative.checked_op(&other.representative)
             .map_err(|e| CosetError::Element(Box::new(e)))?;
-        // let representative = self.representative.safe_op(&other.representative).map_err(|e| format!("{:?}",e))?;
 
         Ok(Coset {
-            representative: representative,
+            representative,
             subgroup: self.subgroup,
             side: self.side,
             _marker: PhantomData,
         })
-        
     }
 }
 
 
-impl<'a, T: GroupElement + CanonicalRepr> Coset<'a, T> {
+impl<'a, T: GroupElement + CanonicalRepr + CheckedOp> Coset<'a, T> {
 
-
+    
     /// create a coset, will check if the subgroup is closed
     pub fn new(representative:T, subgroup: &'a FiniteGroup<T>, side: CosetSide) -> Result<Coset<'a, T>, AbsaglError> {
         if !subgroup.is_closed() {
@@ -440,7 +444,7 @@ mod test_coset{
 
 
     #[test]
-    fn test_coset_safe_op_fail_box_error() {
+    fn test_coset_checked_op_fail_box_error() {
         let a = Permutation::new(vec![0,1,2]).unwrap();
         let b = Permutation::new(vec![0,1]).unwrap();
         let s3 = GroupGenerators::generate_permutation_group(3).unwrap();
@@ -449,7 +453,7 @@ mod test_coset{
         let coset1 = Coset::new(a, &s3, CosetSide::Left).unwrap();
         let coset2 = Coset::new(b, &s3, CosetSide::Left).unwrap();
 
-        match coset1.safe_op(&coset2) {
+        match coset1.checked_op(&coset2) {
             Ok(_) => panic!("should not success"),
             Err(CosetError::Element(e)) => {
                 println!("e: {:?}", e);

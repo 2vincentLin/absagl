@@ -2,7 +2,7 @@ use std::fmt;
 use std::error::Error;
 
 use crate::error::AbsaglError;
-use crate::groups::{GroupElement, CanonicalRepr};
+use crate::groups::{CanonicalRepr, CheckedOp, GroupElement};
 use crate::utils;
 
 
@@ -39,7 +39,6 @@ pub struct DihedralElement {
 }
 
 impl GroupElement for DihedralElement {
-    type Error = DihedralError;
 
     fn op(&self, other: &Self) -> Self {
         if self.n != other.n {
@@ -66,17 +65,25 @@ impl GroupElement for DihedralElement {
         }
     }
 
-    fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
+    
+}
+
+impl CheckedOp for DihedralElement {
+    type Error = DihedralError;
+
+    fn checked_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.n != other.n {
             log::error!("Size mismatch: {} != {}", self.n, other.n);
-            return Err(DihedralError::SizeNotMatch)?;
+            Err(DihedralError::SizeNotMatch)
+        } else {
+            Ok(self.op(other))
         }
-        Ok(self.op(other))
     }
 }
 
 
 impl DihedralElement {
+
     /// Creates a new DihedralElement with the given rotation and reflection
     pub fn new(rotation: usize, reflection: bool, n: usize) -> Result<Self, AbsaglError> {
         if n == 0 {
@@ -200,7 +207,7 @@ impl CanonicalRepr for DihedralElement {
 }
 
 #[cfg(test)]
-mod tests {
+mod test_dihedrals {
     use super::*;
 
     #[test]
@@ -257,5 +264,24 @@ mod tests {
         let d1 = DihedralElement::new(1, false,9).unwrap();
         let expected: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 9];
         assert_eq!(d1.to_canonical_bytes(), expected);
+    }
+
+    #[test]
+    fn test_dihedral_checked_op() {
+        let a = DihedralElement::new(1, false, 4).unwrap();
+        let b = DihedralElement::new(2, true, 4).unwrap();
+        let result = a.checked_op(&b);
+        assert!(result.is_ok());
+        let c = result.unwrap();
+        assert_eq!(c.rotation, 3);
+        assert!(c.reflection);
+        
+        // Test size mismatch
+        let d = DihedralElement::new(1, false, 5).unwrap();
+        let result = a.checked_op(&d);
+        match result {
+            Err(DihedralError::SizeNotMatch) => assert!(true),
+            _ => panic!("Expected size mismatch error"),
+        }
     }
 }

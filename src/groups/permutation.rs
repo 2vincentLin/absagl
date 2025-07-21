@@ -1,4 +1,4 @@
-use crate::groups::{GroupElement, CanonicalRepr};
+use crate::groups::{CanonicalRepr, CheckedOp, GroupElement};
 use crate::utils;
 use crate::error::AbsaglError;
 use std::collections::{HashMap, HashSet};
@@ -47,7 +47,7 @@ pub struct Permutation {
 }
 
 impl GroupElement for Permutation {
-    type Error = PermutationError;
+    // type Error = PermutationError;
     /// Perform the operation of two permutations
     /// this is not safe, it will panic if the sizes of the two permutations are not equal
     fn op(&self, other: &Self) -> Self {
@@ -66,11 +66,17 @@ impl GroupElement for Permutation {
         }
         Permutation { mapping: inv }
     }
-    /// Perform the operation of two permutations, but return an error if the sizes do not match
-    fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
+    
+}
+
+impl CheckedOp for Permutation {
+    type Error = PermutationError;
+
+    /// A fallible version of the group operation.
+    fn checked_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.mapping.len() != other.mapping.len() {
-            log::error!("Size mismatch: {} vs {}", self.mapping.len(), other.mapping.len());
-            Err(PermutationError::SizeNotMatch)?
+            log::error!("Size mismatch: {} != {}", self.mapping.len(), other.mapping.len());
+            Err(PermutationError::SizeNotMatch)
         } else {
             Ok(self.op(other))
         }
@@ -79,6 +85,7 @@ impl GroupElement for Permutation {
 
 impl Permutation {
 
+    
     /// Create a new permutation given a mapping
     pub fn new(mapping: Vec<usize>) -> Result<Self, AbsaglError> {
         if !utils::is_mapping_valid(&mapping) {
@@ -124,7 +131,7 @@ impl Permutation {
 
     /// Construct a permutation from a list of cycles
     /// so you can pass cycles like (0,2,4) 0-based cycle to create a permutation
-    /// it'll generate a mapping like [2, 1, 4, 3, 0] for size 5
+    /// it'll generate a mapping like [[2, 1, 4, 3, 0]] for size 5
     /// 
     /// ```rust
     /// # use absagl::groups::permutation::Permutation; // import the Permutation struct
@@ -311,8 +318,7 @@ impl<'a, 'b> Mul<&'b Permutation> for &'a Permutation {
 
 impl CanonicalRepr for Permutation {
     fn to_canonical_bytes(&self) -> Vec<u8> {
-        // The one-line notation is already a perfect canonical form.
-        // We just need to convert it to bytes.
+        
         self.mapping
             .iter()
             .flat_map(|&x| x.to_be_bytes())
@@ -328,7 +334,6 @@ pub struct AlternatingGroupElement {
 }
 
 impl GroupElement for AlternatingGroupElement {
-    type Error = PermutationError;
 
     /// Perform the operation of two alternating group elements
     /// this is not safe, it will panic if the sizes of the two permutations are not equal
@@ -346,11 +351,17 @@ impl GroupElement for AlternatingGroupElement {
         }
     }
 
-    /// Perform the operation of two alternating group elements, but return an error if the sizes do not match
-    fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
+    
+}
+
+impl CheckedOp for AlternatingGroupElement {
+    type Error = PermutationError;
+
+    /// A fallible version of the group operation.
+    fn checked_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.permutation.mapping.len() != other.permutation.mapping.len() {
-            log::error!("Size mismatch: {} vs {}", self.permutation.mapping.len(), other.permutation.mapping.len());
-            Err(PermutationError::SizeNotMatch)?
+            log::error!("Size mismatch: {} != {}", self.permutation.mapping.len(), other.permutation.mapping.len());
+            Err(PermutationError::SizeNotMatch)
         } else {
             Ok(self.op(other))
         }
@@ -359,6 +370,8 @@ impl GroupElement for AlternatingGroupElement {
 
 
 impl AlternatingGroupElement {
+
+   
     pub fn new(p: Permutation) -> Result<Self, AbsaglError> {
         if p.is_even() {
             Ok(AlternatingGroupElement { permutation: p })
@@ -424,7 +437,6 @@ pub struct SparsePerm {
 }
 
 impl GroupElement for SparsePerm {
-    type Error = AbsaglError;
     fn op(&self, other: &Self) -> Self {
         let mut mapping = HashMap::new();
         for (&k, &v) in &self.mapping {
@@ -446,7 +458,14 @@ impl GroupElement for SparsePerm {
         SparsePerm { mapping: inv }
     }
 
-    fn safe_op(&self, other: &Self) -> Result<Self, Self::Error> {
+    
+}
+
+impl CheckedOp for SparsePerm {
+    type Error = PermutationError;
+
+    /// A fallible version of the group operation.
+    fn checked_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.mapping.keys().any(|k| !other.mapping.contains_key(k)) {
             Err(PermutationError::SizeNotMatch)?
         } else {
@@ -456,6 +475,8 @@ impl GroupElement for SparsePerm {
 }
 
 impl SparsePerm {
+
+    
     pub fn identity() -> Self {
         SparsePerm { mapping: HashMap::new() }
     }
@@ -578,17 +599,17 @@ mod test_permutaion {
         
     }
     #[test]
-    fn test_permutation_safe_op_size_mismatch() {
+    fn test_permutation_checked_op_size_mismatch() {
 
         let a = Permutation::new(vec![0, 1, 2, 3]).expect("should create element");
 
         let b = Permutation::new(vec![0, 2, 1, 3, 4]).expect("should create element");
-        let result = a.safe_op(&b);
+        let result = a.checked_op(&b);
         match result {
             Err(PermutationError::SizeNotMatch) => {
                 // Test passes, this is the expected outcome
             },
-            _ => panic!("Expected Err(PermutationError::SizeMismatch), but got {:?}", result),
+            _ => panic!("Expected Err(PermutationError::SizeNotMatch), but got {:?}", result),
         }
     }
 
