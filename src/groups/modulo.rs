@@ -192,6 +192,16 @@ impl<Op> Modulo<Op> where Modulo<Op>: GroupElement {
         Modulo { value: Op::identity(), modulus, _marker: PhantomData }
     }
 
+    /// return value of the element
+    pub fn value(&self) -> u64 {
+        self.value
+    }
+
+    /// return modulus of the element
+    pub fn modulus(&self) -> u64 {
+        self.modulus
+    }
+
     /// return order of the element
     pub fn order(&self) -> u64 {
         

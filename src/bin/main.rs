@@ -18,6 +18,7 @@ use absagl::groups::FiniteGroup;
 use absagl::groups::Multiplicative;
 use absagl::groups::{Additive};
 use absagl::utils;
+use absagl::homomorphism::Homomorphism;
 use absagl::groups::factor::CosetSide;
 use rayon::result;
 
@@ -36,67 +37,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     
     
-    let a = Permutation::new(vec![0,1,2]).unwrap();
-    let b = Permutation::new(vec![0,1]).unwrap();
-    let s3 = GroupGenerators::generate_permutation_group(3).unwrap();
-    println!("s3: {:?}", s3);
-
-    let a3 = FiniteGroup::new(Permutation::generate_alternative_group(3).unwrap()).unwrap();
-    println!("a3: {:?}", a3);
-
-    let coset1 = Coset::new(a, &s3, CosetSide::Left).unwrap();
-    let coset2 = Coset::new(b, &s3, CosetSide::Left).unwrap();
-
-    match coset1.checked_op(&coset2) {
-        Ok(_) => println!("good"),
-        Err(CosetError::Element(e)) => {
-            println!("error is {:?}", &e);
-
-            match e.downcast_ref::<PermutationError>() {
-                Some(&PermutationError::SizeNotMatch) => println!("this one: SIZE NOT MATCH"),
-                Some(c) => println!("other error: {:?}", c),
-                None => println!("it's none")
-            }
-
-            dbg!(&e);
-
-            // match e {
-            //     PermutationError::SizeNotMatch => println!("this one"),
-            //     _ => println!("others")
-            // }
-            
-            if let Some(error) = e.downcast_ref::<PermutationError>() {
-                println!("inner error is: {:?}", error);
-
-            }
-        
-        },
-        Err(e) => println!("other error: {:?}", e)
-    }
 
 
 
-    let f3 = FactorGroup::new(&s3, &a3);
-    println!("f3: {:?}", f3);
+    let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+    let hom = Homomorphism::new(valid_mapping, None);
 
-    let m6 = GroupGenerators::generate_modulo_group_mul(6).unwrap();
-    println!("m6: {:?}", m6);
+    println!("Homomorphism: {:?}", hom);
 
+    let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+    let hom = Homomorphism::new(valid_mapping, Some("to Z_2".to_string()));
 
-    let a = Modulo::new(1,3).unwrap();
-    let z3 = GroupGenerators::generate_modulo_group_add(3).unwrap();
+    println!("Homomorphism: {:?}", hom);
 
-    let coset1 = Coset::new(a, &z3, CosetSide::Left).unwrap();
-
-    let b = Modulo::new(1,4).unwrap();
-    let z4 = GroupGenerators::generate_modulo_group_add(4).unwrap();
-
-    let coset2 = Coset::new(b, &z4, CosetSide::Left).unwrap();
-
-    match coset1.checked_op(&coset2) {
-        Ok(_) => println!("good"),
-        Err(e) => println!("other error: {:?}", e)
-    }
 
     
 

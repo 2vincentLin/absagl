@@ -156,10 +156,10 @@ impl<T: GroupElement> Group<T> for FiniteGroup<T> {
 }
 
 impl<T: GroupElement> FiniteGroup<T> {
-    /// Creates a new group with the given elements
-    // pub fn new(elements: Vec<T>) -> Self {
-    //     FiniteGroup { elements }
-    // }
+    /// returns a reference to the elements of the group
+    pub fn elements(&self) -> &[T] {
+        &self.elements
+    }
 
     /// Creates a new group with the given elements, this will check if given Vec<T> is closed
     pub fn new(elements: Vec<T>) -> Result<Self, AbsaglError> {
@@ -210,7 +210,7 @@ impl<T: GroupElement> FiniteGroup<T> {
             let current_elements: Vec<T> = subgroup_elements.iter().cloned().collect();
 
             for h in current_elements {
-                let product = self.operate(&g, &h); // Assuming self.op performs the group operation
+                let product = self.operate(&g, &h); 
 
                 // 3. If a new element is found, add it to the set and the queue
                 if subgroup_elements.insert(product.clone()) {
@@ -260,7 +260,7 @@ impl<T: GroupElement> PartialEq for FiniteGroup<T> {
 /// Don't forget to add this boilerplate impl for Eq
 impl<T: GroupElement> Eq for FiniteGroup<T> {}
 
-/// to impl Hash for FiniteGroup<T>, because for some GroupElement like Permutation, their don't have order.
+/// to impl Hash for FiniteGroup<T>, because for some GroupElement like Permutation, doesn't have meaning of ordering.
 /// so simply derive Ord is a bad design, you don't know when it'll create a computation bug.
 // impl<T: GroupElement + Ord> Hash for FiniteGroup<T> {
 //     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -352,7 +352,7 @@ impl GroupGenerators {
 
 
 #[cfg(test)]
-mod tests {
+mod test_finite_group {
 
     // Import the necessary modules and traits
     use super::*;
@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn test_generate_normal_subgroup_fail_not_subgroup() {
         let group = GroupGenerators::generate_modulo_group_add(5).unwrap();
-        let g1 = Modulo::new(1,5).unwrap();
+        let g1 = Modulo::<Additive>::new(1,5).unwrap();
 
         let result = group.generate_normal_subgroup(vec![g1]);
 
@@ -413,33 +413,6 @@ mod tests {
 
         match result {
             Err(AbsaglError::Group(GroupError::NotSubgroup)) => {
-                // pass
-            }
-            _ => panic!("Expected Err(AbsaglError::Group(GroupError::NotSubgroup)), but got {:?}", result),
-
-        }
-        
-    }
-
-
-    #[test]
-    fn test_generate_normal_subgroup_success() {
-        let group = GroupGenerators::generate_modulo_group_add(6).unwrap();
-        let g2 = Modulo::new(2,6).unwrap();
-
-        let result = group.generate_normal_subgroup(vec![g2]);
-
-        // println!("result is: {:?}", &result.unwrap());
-
-
-
-        match result {
-            Ok(group) => {
-                let g0 = Modulo::new(0,6).unwrap();
-                let g2 = Modulo::new(2,6).unwrap();
-                let g4 = Modulo::new(4,6).unwrap();
-                let expected = FiniteGroup::new(vec![g0,g2,g4]).expect("should create a FiniteGroup");
-                assert_eq!(group, expected);
                 // pass
             }
             _ => panic!("Expected Err(AbsaglError::Group(GroupError::NotSubgroup)), but got {:?}", result),
@@ -465,6 +438,35 @@ mod tests {
         }
         
     }
+
+
+    #[test]
+    fn test_generate_normal_subgroup_success() {
+        let group = GroupGenerators::generate_modulo_group_add(6).unwrap();
+        let g2 = Modulo::<Additive>::new(2,6).unwrap();
+
+        let result = group.generate_normal_subgroup(vec![g2]);
+
+        // println!("result is: {:?}", &result.unwrap());
+
+
+
+        match result {
+            Ok(group) => {
+                let g0 = Modulo::new(0,6).unwrap();
+                let g2 = Modulo::new(2,6).unwrap();
+                let g4 = Modulo::new(4,6).unwrap();
+                let expected = FiniteGroup::new(vec![g0,g2,g4]).expect("should create a FiniteGroup");
+                assert_eq!(group, expected);
+                // pass
+            }
+            _ => panic!("Expected Err(AbsaglError::Group(GroupError::NotSubgroup)), but got {:?}", result),
+
+        }
+        
+    }
+
+    
 
 
     #[test]
@@ -531,4 +533,43 @@ mod tests {
     //     set.insert(group);
     // }
 
+}
+
+
+
+#[cfg(test)]
+mod test_group_generators {
+
+    use super::*;
+    use crate::groups::GroupGenerators;
+
+    #[test]
+    fn test_generate_modulo_group_add() {
+        let group = GroupGenerators::generate_modulo_group_add(5).expect("Failed to generate modulo group");
+        assert_eq!(group.order(), 5);
+    }
+
+    #[test]
+    fn test_generate_modulo_group_mul() {
+        let group = GroupGenerators::generate_modulo_group_mul(5).expect("Failed to generate modulo group");
+        assert_eq!(group.order(), 4); // 0 is not included in multiplicative group
+    }
+
+    #[test]
+    fn test_generate_permutation_group() {
+        let group = GroupGenerators::generate_permutation_group(3).expect("Failed to generate permutation group");
+        assert_eq!(group.order(), 6); // S3 has 6 elements
+    }
+
+    #[test]
+    fn test_generate_alternating_group() {
+        let group = GroupGenerators::generate_alternating_group(3).expect("Failed to generate alternating group");
+        assert_eq!(group.order(), 3); // A3 has 3 elements
+    }
+
+    #[test]
+    fn test_generate_dihedral_group() {
+        let group = GroupGenerators::generate_dihedral_group(3).expect("Failed to generate dihedral group");
+        assert_eq!(group.order(), 6); // D3 has 6 elements
+    }
 }

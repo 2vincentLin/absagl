@@ -10,6 +10,7 @@ pub enum AbsaglError {
     Dihedral(crate::groups::dihedral::DihedralError),
     Group(crate::groups::GroupError),
     Coset(crate::groups::factor::CosetError),
+    Homomorphism(crate::homomorphism::HomomorphismError),
     // this new variant to hold the generic error from T
     Element(Box<dyn Error + Send + Sync + 'static>),
     // ... add other sub-errors
@@ -24,6 +25,7 @@ impl fmt::Display for AbsaglError {
             AbsaglError::Dihedral(e) => write!(f, "Diherdral error: {}", e),
             AbsaglError::Group(e) => write!(f, "Group error: {}", e),
             AbsaglError::Coset(e) => write!(f, "Coset error: {}", e),
+            AbsaglError::Homomorphism(e) => write!(f, "Homomorphism error: {}", e),
             AbsaglError::Element(e) => write!(f, "Underlying element error: {}", e),
             AbsaglError::Other(msg) => write!(f, "Other error: {}", msg),
         }
@@ -38,6 +40,7 @@ impl std::error::Error for AbsaglError {
             AbsaglError::Dihedral(e) => Some(e),
             AbsaglError::Group(e) => Some(e),
             AbsaglError::Coset(e) => Some(e),
+            AbsaglError::Homomorphism(e) => Some(e),
             AbsaglError::Element(e) => Some(e.as_ref()),
             AbsaglError::Other(_) => None,
         }
@@ -73,6 +76,12 @@ impl From<crate::groups::permutation::PermutationError> for AbsaglError {
 impl From<crate::groups::dihedral::DihedralError> for AbsaglError {
     fn from(e: crate::groups::dihedral::DihedralError) -> Self {
         AbsaglError::Dihedral(e)
+    }
+}
+
+impl From<crate::homomorphism::HomomorphismError> for AbsaglError {
+    fn from(e: crate::homomorphism::HomomorphismError) -> Self {
+        AbsaglError::Homomorphism(e)
     }
 }
 

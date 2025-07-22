@@ -565,11 +565,22 @@ mod test_permutaion {
     
 
     #[test]
-    fn test_permutaion_create() {
+    fn test_permutaion_create_success() {
 
         let a = Permutation::new(vec![0,1,2]).expect("should create permutation");
         assert_eq!(a.mapping(), &vec![0,1,2])
 
+    }
+
+    #[test]
+    fn test_permutaion_create_fail() {
+        let result = Permutation::new(vec![0,0,2]);
+        match result {
+            Err(AbsaglError::Permutation(PermutationError::NonDisjointCycles)) => {
+                // Test passes, this is the expected outcome
+            },
+            _ => panic!("Expected Err(PermutationError::NonDisjointCycles), but got {:?}", result),
+        }
     }
 
     #[test]

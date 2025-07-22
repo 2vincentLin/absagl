@@ -8,6 +8,7 @@ use std::fmt::{self};
 use std::marker::PhantomData;
 use std::hash::{Hash,Hasher};
 use std::error::Error;
+use std::collections::HashSet;
 
 
 #[derive(Debug)]
@@ -152,7 +153,7 @@ impl<'a, T: GroupElement + CheckedOp + CanonicalRepr> CheckedOp for Coset<'a, T>
 }
 
 
-impl<'a, T: GroupElement + CanonicalRepr + CheckedOp> Coset<'a, T> {
+impl<'a, T: GroupElement + CanonicalRepr> Coset<'a, T> {
 
     
     /// create a coset, will check if the subgroup is closed
@@ -325,13 +326,60 @@ impl<'a,T: GroupElement + CanonicalRepr> FactorGroup<'a,T> {
 
         Ok(FactorGroup { group: group, normal_subgroup: subgroup })
     }
+
+    
+    /// This function partitions the group `G` into disjoint cosets with respect
+    /// to the normal subgroup `N`.
+    ///
+    pub fn coset_partition(&self) -> Result<Vec<Vec<T>>, AbsaglError> {
+        // The final list of unique cosets that form the factor group.
+        let mut cosets = Vec::new();
+
+        // A HashSet to keep track of elements that have already been assigned to a coset.
+        // This is the key to ensuring each element is processed only once and we don't
+        // generate duplicate cosets.
+        let mut visited_elements = HashSet::with_capacity(self.group.elements().len());
+
+        // 1st put normal subgroup elements into visited_elements
+        for h in self.normal_subgroup.elements() {
+            visited_elements.insert(h.clone());
+        }
+        cosets.push(self.normal_subgroup.elements.clone());
+
+        // Iterate over every element in the parent group G.
+        for g in self.group.elements() {
+            // If we have already visited this element, it means it belongs to a coset
+            // that has already been found. We can safely skip it.
+            if visited_elements.contains(g) {
+                continue;
+            }
+
+            // If `g` has not been visited, it must be a representative of a new, unique coset.
+            // We create the coset `gH` using `g` as its representative.
+            let new_coset = Coset::new(g.clone(), self.normal_subgroup, CosetSide::Left)?;
+            // Now, we need to enumerate all elements in this coset.
+            let whole_set = new_coset.enumerate_coset();
+
+
+            // Now, we must "claim" all elements belonging to this new coset by adding them
+            // to our set of visited elements.
+            for element_in_coset in whole_set.clone() {
+                visited_elements.insert(element_in_coset);
+            }
+
+            // Finally, add the newly discovered coset to our list.
+            cosets.push(whole_set);
+        }
+
+        Ok(cosets)
+    }
 }
 
 
 #[cfg(test)]
 mod test_coset{
 
-    use crate::groups::{modulo::Modulo, Additive, Multiplicative};
+    use crate::groups::{modulo::Modulo, Additive};
     use crate::groups::permutation::{Permutation, PermutationError};
     use crate::groups::GroupGenerators;
     use super::*;
@@ -559,6 +607,8 @@ mod test_coset{
 
     }
 
+    
+
 
 
 }
@@ -566,16 +616,46 @@ mod test_coset{
 #[cfg(test)]
 mod test_factor_group {
 
-    use crate::groups::{modulo::Modulo, GroupGenerators};
+
+    use crate::groups::{modulo::Modulo, permutation::Permutation, Additive, GroupGenerators, Multiplicative};
     use super::*;
 
+    #[test]
+    fn test_factor_group_create_success() {
+        let s3 = GroupGenerators::generate_permutation_group(3).expect("should generate group");
+        let a3 = GroupGenerators::generate_alternating_group(3).expect("should generate group");
+
+        let result = FactorGroup::new(&s3, &a3);
+
+        assert!(result.is_ok(), "should be ok, but got {:?}", result);
+    }
+
+    #[test]
+    fn test_factor_group_create_fail_not_normal() {
+        let e = Permutation::identity(3);
+        let g = Permutation::from_cycles(&vec![vec![0,1]], 3).expect("should create element");
+        let s3 = GroupGenerators::generate_permutation_group(3).expect("should generate group");
+
+        let subgroup = FiniteGroup::new(vec![e, g])
+            .expect("should create a FiniteGroup");
+
+        let result = FactorGroup::new(&s3, &subgroup);
+
+        match result {
+            Err(AbsaglError::Group(GroupError::NotNormalSubgroup)) => {
+                // pass
+            },
+            Ok(_) => panic!("should not success, because subgroup is not normal in group"),
+            Err(e) => panic!("should be Err(GroupError::NotNormalSubgroup), but got {:?}", e),
+        }
+    }
 
     #[test]
     fn test_factor_group_order(){
 
-        let e  = Modulo::new(0, 6).expect("should create element");
-        let b = Modulo::new(2, 6).expect("should create element");
-        let c = Modulo::new(4, 6).expect("should create element");
+        let e  = Modulo::<Additive>::new(0, 6).expect("should create element");
+        let b = Modulo::<Additive>::new(2, 6).expect("should create element");
+        let c = Modulo::<Additive>::new(4, 6).expect("should create element");
 
         let normal_subgroup = FiniteGroup::new(vec![e,b,c]).expect("should create a FiniteGroup");
         let group = GroupGenerators::generate_modulo_group_add(6).expect("should generate group");
@@ -592,9 +672,9 @@ mod test_factor_group {
 
     #[test]
     fn test_factor_group_is_abelian() {
-        let e  = Modulo::new(0, 6).expect("should create element");
-        let b = Modulo::new(2, 6).expect("should create element");
-        let c = Modulo::new(4, 6).expect("should create element");
+        let e  = Modulo::<Additive>::new(0, 6).expect("should create element");
+        let b = Modulo::<Additive>::new(2, 6).expect("should create element");
+        let c = Modulo::<Additive>::new(4, 6).expect("should create element");
 
         let normal_subgroup = FiniteGroup::new(vec![e,b,c]).expect("should create a FiniteGroup");
         let group = GroupGenerators::generate_modulo_group_add(6).expect("should generate group");
@@ -606,6 +686,46 @@ mod test_factor_group {
 
         assert!(factor_group.is_abelian(), "should be true");
 
+    }
+
+    #[test]
+    fn test_factor_group_coset_partition_permutation() {
+        let s3 = GroupGenerators::generate_permutation_group(3).expect("should generate group");
+        let a3 = GroupGenerators::generate_alternating_group(3).expect("should generate group");
+
+        let factor_group = FactorGroup::new(&s3, &a3).expect("should create factor group");
+
+        let cosets = factor_group.coset_partition().expect("should get coset partition");
+
+        assert_eq!(cosets.len(), 2, "should have 2 cosets");
+    }
+
+    #[test]
+    fn test_factor_group_coset_partition_modulo() {
+        let e = Modulo::<Additive>::new(0, 12).expect("should create element");
+        let g4 = Modulo::<Additive>::new(4, 12).expect("should create element");
+        let g8 = Modulo::<Additive>::new(8, 12).expect("should create element");
+
+        let subgroup = FiniteGroup::new(vec![e, g4, g8])
+            .expect("should create a FiniteGroup");
+        let group = GroupGenerators::generate_modulo_group_add(12).expect("should create a FiniteGroup");
+        let factor_group = FactorGroup::new(&group, &subgroup)
+            .expect("should create a FactorGroup");
+
+        let cosets = factor_group.coset_partition()
+            .expect("should get coset partition");
+        assert_eq!(cosets.len(), 4, "should have 4 cosets");
+
+        //---- test with multiplicative group ----
+
+        let z6 = GroupGenerators::generate_modulo_group_mul(6).expect("should generate group");
+        let e = Modulo::<Multiplicative>::new(1, 6).expect("should create element");
+        let subgroup = FiniteGroup::new(vec![e]).expect("should create a FiniteGroup");
+        let factor_group = FactorGroup::new(&z6, &subgroup)
+            .expect("should create a FactorGroup");
+        let cosets = factor_group.coset_partition()
+            .expect("should get coset partition");
+        assert_eq!(cosets.len(), 2, "should have 6 cosets");
     }
 
 
