@@ -52,6 +52,10 @@ pub trait ModuloOperation : Sized where Modulo<Self>: GroupElement {
         let _ = modulus;
         true
     }
+    /// return order of the element
+    fn order(value: u64, modulus: u64) -> u64;
+    /// return symbol of the operation, e.g. "+" for additive, "×" for multiplicative
+    fn symbol() -> &'static str;
     /// generate the whole group based on the operation
     fn generate_group(modulus: u64) -> Result<Vec<Modulo<Self>>, AbsaglError>;
     
@@ -60,6 +64,15 @@ pub trait ModuloOperation : Sized where Modulo<Self>: GroupElement {
 impl ModuloOperation for Additive {
     fn identity() -> u64 {
         0
+    }
+    /// return order of the element
+    fn order(value: u64, modulus: u64) -> u64 {
+        
+        // The order of an element in Z_n is n / gcd(n, value)
+        modulus / utils::gcd(modulus as usize, value as usize) as u64
+    }
+    fn symbol() -> &'static str {
+        "+"
     }
     fn generate_group(modulus: u64) -> Result<Vec<Modulo<Self>>, AbsaglError> {
         (0..modulus).map(|i| Modulo::new(i, modulus)).collect()
@@ -73,6 +86,18 @@ impl ModuloOperation for Multiplicative {
     /// Override: A value is valid for multiplication if gcd(value, modulus) == 1.
     fn is_valid(value: u64, modulus: u64) -> bool {
         utils::gcd(value as usize, modulus as usize) == 1
+    }
+    fn order(value: u64, modulus: u64) -> u64 {
+        let mut k = 1;
+        let mut acc = value % modulus;
+        while acc != 1 {
+            acc = (acc * value) % modulus;
+            k += 1;
+        }
+        k
+    }
+    fn symbol() -> &'static str {
+        "×" // Use the multiplication sign for clarity
     }
     fn generate_group(modulus: u64) -> Result<Vec<Modulo<Self>>, AbsaglError> {
         (1..modulus)
@@ -203,10 +228,11 @@ impl<Op> Modulo<Op> where Modulo<Op>: GroupElement {
     }
 
     /// return order of the element
-    pub fn order(&self) -> u64 {
-        
-        // The order of an element in Z_n is n / gcd(n, value)
-        self.modulus / utils::gcd(self.modulus as usize, self.value as usize) as u64
+    pub fn order(&self) -> u64 
+    where 
+        Op: ModuloOperation,
+    {
+        Op::order(self.value, self.modulus)
     }
 
     /// Generate Z_n group elements
@@ -225,7 +251,24 @@ impl<Op> Modulo<Op> where Modulo<Op>: GroupElement {
     // }
 }
 
+impl<Op> fmt::Display for Modulo<Op>
+where
+    Op: ModuloOperation, Modulo<Op>: GroupElement
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Option 1: Standard Mathematical Notation (Recommended)
+        // write!(f, "{} (mod {})", self.value, self.modulus)
 
+        // Option 2: Explicit Notation (Good for debugging)
+        write!(
+            f,
+            "{} (mod {}){}",
+            self.value,
+            self.modulus,
+            Op::symbol()
+        )
+    }
+}
 
 
 #[cfg(test)]
@@ -302,6 +345,32 @@ mod test_modulos {
     }
 
     #[test]
+    fn test_modulo_order_add() {
+        let a = Modulo::<Additive>::new(3, 5).unwrap();
+        assert_eq!(a.order(), 5);
+    }
+
+    #[test]
+    fn test_modulo_order_add_identity() {
+        let a = Modulo::<Additive>::new(0, 5).unwrap();
+        // The order of the identity element should be 1
+        assert_eq!(a.order(), 1);
+    }
+
+    #[test]
+    fn test_modulo_order_mul() {
+        let a = Modulo::<Multiplicative>::new(3, 7).unwrap();
+        assert_eq!(a.order(), 6);
+    }
+
+    #[test]
+    fn test_modulo_order_mul_identity() {
+        let a = Modulo::<Multiplicative>::new(1, 7).unwrap();
+        // The order of the identity element should be 1
+        assert_eq!(a.order(), 1);
+    }
+
+    #[test]
     fn test_modulo_checked_op_size_mismatch_add() {
         let a = Modulo::<Additive>::new(1, 5).unwrap();
         let b = Modulo::<Additive>::new(2, 6).unwrap();
@@ -322,4 +391,19 @@ mod test_modulos {
         let b : Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 5];
         assert_eq!(a.to_canonical_bytes(), b);
     }
+
+
+    #[test]
+    fn test_display_add() {
+        let a = Modulo::<Additive>::new(2, 5).expect("should create permutation");
+        assert_eq!(format!("{}", a), "2 (mod 5)+");
+    }
+
+    #[test]
+    fn test_display_mul() {
+        let a = Modulo::<Multiplicative>::new(2, 5).expect("should create permutation");
+        assert_eq!(format!("{}", a), "2 (mod 5)×");
+    }
+
+    
 }

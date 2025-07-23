@@ -62,6 +62,31 @@ pub fn modular_inverse(a: i64, n: i64) -> Option<i64> {
 }
 
 
+/// A macro to mimic a notebook's "In/Out" cells for easy documentation.
+///
+/// It takes an expression, prints the expression as a string, executes it,
+/// prints the result, and then returns the result.
+#[macro_export]
+macro_rules! show {
+    // The macro takes a single Rust expression ($e)
+    ($e:expr) => {
+        // The code inside this block will be substituted wherever show!() is called.
+        {
+            // Use a raw string literal (r#...#) to handle expressions with quotes.
+            // `stringify!` converts the expression tokens into a string at compile time.
+            println!("▶ In:  `{}`", stringify!($e));
+
+            // Execute the expression and store its result.
+            let result = $e;
+
+            // Print the result using its Debug format.
+            println!("◀ Out: `{:?}`\n", &result);
+
+            // Return the result so it can be used in subsequent calculations.
+            result
+        }
+    };
+}
 
 
 #[cfg(test)]

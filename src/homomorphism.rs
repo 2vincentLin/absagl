@@ -331,8 +331,6 @@ mod test_homomorphism {
         let z6 = GroupGenerators::generate_modulo_group_add(6).unwrap();
         let hom = Homomorphism::new(valid_mapping, None);
 
-
-
         assert!(hom.is_injective(&z6), "Homomorphism should be injective");
     }
 
@@ -341,7 +339,6 @@ mod test_homomorphism {
         let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2 , 2).unwrap();
         let z6 = GroupGenerators::generate_modulo_group_add(6).unwrap();
         let hom = Homomorphism::new(valid_mapping, None);
-
 
         assert!(!hom.is_injective(&z6), "Homomorphism should not be injective");
     }

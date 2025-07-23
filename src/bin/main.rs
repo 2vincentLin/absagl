@@ -18,6 +18,7 @@ use absagl::groups::FiniteGroup;
 use absagl::groups::Multiplicative;
 use absagl::groups::{Additive};
 use absagl::utils;
+use absagl::show;
 use absagl::homomorphism::Homomorphism;
 use absagl::groups::factor::CosetSide;
 use rayon::result;
@@ -50,7 +51,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Homomorphism: {:?}", hom);
 
+    println!("# Example: Homomorphism Kernel\n");
 
+    let z4 = show!(GroupGenerators::generate_modulo_group_add(4).unwrap());
+    let identity_h = show!(Modulo::<Additive>::new(0, 2).unwrap());
+
+    let mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+
+    let hom = show!(Homomorphism::try_new(&z4, mapping, None).unwrap());
+
+    show!(hom.kernel(&z4, &identity_h));
+
+    let a = Modulo::<Multiplicative>::new(1,3).unwrap();
+    println!("order of {} is {}", a, a.order());
+
+    let a = Modulo::<Additive>::new(0,3).unwrap();
+    println!("order of {:?} is {}", a, a.order());
+
+    let a = Permutation::new(vec![0, 2, 1, 4, 3]).expect("should create permutation");
+    println!("a: {}", a);
     
 
     Ok(())

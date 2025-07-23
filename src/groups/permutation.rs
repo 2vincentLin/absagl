@@ -283,15 +283,22 @@ impl fmt::Display for Permutation {
 
         // note that for identity permutation, cycles will be empty
         if cycles.is_empty() {
-            write!(f, "()")
+            write!(f, "(e)")
         } else {
             for cycle in cycles {
                 write!(f, "(")?;
-                for i in cycle {
-                    write!(f, "{} ", i)?; // 0-based
+                // Use a peekable iterator to handle spacing correctly
+                let mut iter = cycle.iter().peekable();
+                while let Some(i) = iter.next() {
+                    write!(f, "{}", i)?; // 0-based
+                    // If there is a next element, print a space
+                    if iter.peek().is_some() {
+                        write!(f, " ")?;
+                    }
                 }
-                write!(f, "\x08)")?; // backspace to remove last space
-            }
+                
+                write!(f, ") ")?; // Space between cycles, e.g., (1 2) (3 4)
+                }
             Ok(())
         }
     }
@@ -667,6 +674,18 @@ mod test_permutaion {
     
     }
 
+    #[test]
+    fn test_display() {
+        let a = Permutation::new(vec![0, 2, 1, 4, 3]).expect("should create permutation");
+        assert_eq!(format!("{}", a), "(1 2) (3 4) ");
+    }
+
+    #[test]
+    fn test_display_id() {
+        let a = Permutation::new(vec![0, 1, 2, 3, 4]).expect("should create permutation");
+        assert_eq!(format!("{}", a), "(e)");
+    }
+
 }
 
 
@@ -750,6 +769,8 @@ mod test_alternating_group_element {
         assert_eq!(a.to_canonical_bytes(),b);
     
     }
+
+
 
     
 }
