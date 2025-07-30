@@ -156,12 +156,14 @@ impl<T: GroupElement> Group<T> for FiniteGroup<T> {
 }
 
 impl<T: GroupElement> FiniteGroup<T> {
+
+   
     /// returns a reference to the elements of the group
     pub fn elements(&self) -> &[T] {
         &self.elements
     }
 
-    /// Creates a new group with the given elements, this will check if given Vec<T> is closed
+    /// Creates a new group with the given elements, this will check if given `Vec<T>` is closed
     pub fn new(elements: Vec<T>) -> Result<Self, AbsaglError> {
 
         let group = FiniteGroup { elements };
@@ -361,9 +363,9 @@ mod test_finite_group {
 
     #[test]
     fn test_is_closed_true() {
-        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
-        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
-        let c = Modulo::<Additive>::new(2, 3).expect("Failed to create Modulo element");
+        let a = Modulo::<Additive>::try_new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::<Additive>::try_new(1, 3).expect("Failed to create Modulo element");
+        let c = Modulo::<Additive>::try_new(2, 3).expect("Failed to create Modulo element");
 
         let group = FiniteGroup::new(vec![a, b, c]).expect("should create a FiniteGroup");
 
@@ -372,8 +374,8 @@ mod test_finite_group {
 
     #[test]
     fn test_is_closed_false() {
-        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
-        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
+        let a = Modulo::<Additive>::try_new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::<Additive>::try_new(1, 3).expect("Failed to create Modulo element");
 
         let result = FiniteGroup::new(vec![a, b]);
         match result {
@@ -387,9 +389,9 @@ mod test_finite_group {
 
     #[test]
     fn test_is_abelian_true() {
-        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
-        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
-        let c = Modulo::<Additive>::new(2, 3).expect("Failed to create Modulo element");
+        let a = Modulo::<Additive>::try_new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::<Additive>::try_new(1, 3).expect("Failed to create Modulo element");
+        let c = Modulo::<Additive>::try_new(2, 3).expect("Failed to create Modulo element");
 
         let group = FiniteGroup::new(vec![a, b, c]).expect("should create a FiniteGroup");
 
@@ -405,7 +407,7 @@ mod test_finite_group {
     #[test]
     fn test_generate_normal_subgroup_fail_not_subgroup() {
         let group = GroupGenerators::generate_modulo_group_add(5).unwrap();
-        let g1 = Modulo::<Additive>::new(1,5).unwrap();
+        let g1 = Modulo::<Additive>::try_new(1,5).unwrap();
 
         let result = group.generate_normal_subgroup(vec![g1]);
 
@@ -443,7 +445,7 @@ mod test_finite_group {
     #[test]
     fn test_generate_normal_subgroup_success() {
         let group = GroupGenerators::generate_modulo_group_add(6).unwrap();
-        let g2 = Modulo::<Additive>::new(2,6).unwrap();
+        let g2 = Modulo::<Additive>::try_new(2,6).unwrap();
 
         let result = group.generate_normal_subgroup(vec![g2]);
 
@@ -453,9 +455,9 @@ mod test_finite_group {
 
         match result {
             Ok(group) => {
-                let g0 = Modulo::new(0,6).unwrap();
-                let g2 = Modulo::new(2,6).unwrap();
-                let g4 = Modulo::new(4,6).unwrap();
+                let g0 = Modulo::try_new(0,6).unwrap();
+                let g2 = Modulo::try_new(2,6).unwrap();
+                let g4 = Modulo::try_new(4,6).unwrap();
                 let expected = FiniteGroup::new(vec![g0,g2,g4]).expect("should create a FiniteGroup");
                 assert_eq!(group, expected);
                 // pass
@@ -471,9 +473,9 @@ mod test_finite_group {
 
     #[test]
     fn test_modulo_group_equal_success() {
-        let a = Modulo::<Additive>::new(0, 3).expect("Failed to create Modulo element");
-        let b = Modulo::<Additive>::new(1, 3).expect("Failed to create Modulo element");
-        let c = Modulo::<Additive>::new(2, 3).expect("Failed to create Modulo element");
+        let a = Modulo::<Additive>::try_new(0, 3).expect("Failed to create Modulo element");
+        let b = Modulo::<Additive>::try_new(1, 3).expect("Failed to create Modulo element");
+        let c = Modulo::<Additive>::try_new(2, 3).expect("Failed to create Modulo element");
 
         let group1 = FiniteGroup::new(vec![a, b, c]).expect("should create a FiniteGroup");
         let group2 = FiniteGroup::new(vec![c, b, a]).expect("should create a FiniteGroup");
@@ -484,10 +486,10 @@ mod test_finite_group {
 
     #[test]
     fn test_modulo_group_equal_fail() {
-        let g0 = Modulo::<Additive>::new(0, 4).expect("Failed to create Modulo element");
-        let g1 = Modulo::<Additive>::new(1, 4).expect("Failed to create Modulo element");
-        let g2 = Modulo::<Additive>::new(2, 4).expect("Failed to create Modulo element");
-        let g3 = Modulo::<Additive>::new(3, 4).expect("Failed to create Modulo element");
+        let g0 = Modulo::<Additive>::try_new(0, 4).expect("Failed to create Modulo element");
+        let g1 = Modulo::<Additive>::try_new(1, 4).expect("Failed to create Modulo element");
+        let g2 = Modulo::<Additive>::try_new(2, 4).expect("Failed to create Modulo element");
+        let g3 = Modulo::<Additive>::try_new(3, 4).expect("Failed to create Modulo element");
 
         let group1 = FiniteGroup::new(vec![g0, g2]).expect("should create a FiniteGroup");
         let group2 = FiniteGroup::new(vec![g0,g1,g2,g3]).expect("should create a FiniteGroup");
@@ -496,8 +498,8 @@ mod test_finite_group {
 
     #[test]
     fn test_permutation_group_equal_success() {
-        let e = Permutation::new(vec![0,1]).unwrap();
-        let a = Permutation::new(vec![1,0]).unwrap();
+        let e = Permutation::try_new(vec![0,1]).unwrap();
+        let a = Permutation::try_new(vec![1,0]).unwrap();
 
         let group1 = FiniteGroup::new(vec![e.clone(),a.clone()]).expect("should create a FiniteGroup");
         let group2= FiniteGroup::new(vec![a.clone(),e.clone()]).expect("should create a FiniteGroup");
@@ -506,8 +508,8 @@ mod test_finite_group {
 
      #[test]
     fn test_permutation_group_equal_fail() {
-        let e = Permutation::new(vec![0,1]).unwrap();
-        let a = Permutation::new(vec![1,0]).unwrap();
+        let e = Permutation::try_new(vec![0,1]).unwrap();
+        let a = Permutation::try_new(vec![1,0]).unwrap();
 
         let group1 = FiniteGroup::new(vec![e.clone(),a.clone()]).expect("should create a FiniteGroup");
         let group2= GroupGenerators::generate_permutation_group(3).unwrap();

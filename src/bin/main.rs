@@ -41,12 +41,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
 
-    let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+    let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
     let hom = Homomorphism::new(valid_mapping, None);
 
     println!("Homomorphism: {:?}", hom);
 
-    let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+    let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
     let hom = Homomorphism::new(valid_mapping, Some("to Z_2".to_string()));
 
     println!("Homomorphism: {:?}", hom);
@@ -54,21 +54,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("# Example: Homomorphism Kernel\n");
 
     let z4 = show!(GroupGenerators::generate_modulo_group_add(4).unwrap());
-    let identity_h = show!(Modulo::<Additive>::new(0, 2).unwrap());
+    let identity_h = show!(Modulo::<Additive>::try_new(0, 2).unwrap());
 
-    let mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+    let mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
 
     let hom = show!(Homomorphism::try_new(&z4, mapping, None).unwrap());
 
     show!(hom.kernel(&z4, &identity_h));
 
-    let a = Modulo::<Multiplicative>::new(1,3).unwrap();
+    let a = Modulo::<Multiplicative>::try_new(1,3).unwrap();
     println!("order of {} is {}", a, a.order());
 
-    let a = Modulo::<Additive>::new(0,3).unwrap();
+    let a = Modulo::<Additive>::try_new(0,3).unwrap();
     println!("order of {:?} is {}", a, a.order());
 
-    let a = Permutation::new(vec![0, 2, 1, 4, 3]).expect("should create permutation");
+    let a = Permutation::try_new(vec![0, 2, 1, 4, 3]).expect("should create permutation");
     println!("a: {}", a);
     
 

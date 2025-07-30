@@ -250,15 +250,15 @@ mod test_homomorphism {
     #[test]
     fn test_homomorphism_apply_modulo() {
         // Define a simple homomorphism from Z_6 to Z_2
-        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
         let hom = Homomorphism::new(valid_mapping, None);
 
-        let g = Modulo::<Additive>::new(3, 6).unwrap();
+        let g = Modulo::<Additive>::try_new(3, 6).unwrap();
         let result = hom.apply(&g);
         println!("Result of applying homomorphism: {:?}", result);
         assert_eq!(result.value(), 1);
 
-        let g = Modulo::<Additive>::new(4, 6).unwrap();
+        let g = Modulo::<Additive>::try_new(4, 6).unwrap();
         let result = hom.apply(&g);
         println!("Result of applying homomorphism: {:?}", result);
         assert_eq!(result.value(), 0);
@@ -266,7 +266,7 @@ mod test_homomorphism {
 
     #[test]
     fn test_homomorphism_try_new_success() {
-        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
         let z4 = GroupGenerators::generate_modulo_group_add(4).unwrap();
         let hom = Homomorphism::try_new(&z4, valid_mapping, None);
 
@@ -285,7 +285,7 @@ mod test_homomorphism {
             let val = m.value();
             let new_val = if val <= 3 { 1 } else { 2 };
             // The target group is Z_3 (mul)
-            Modulo::<Multiplicative>::new(new_val, 3).unwrap()
+            Modulo::<Multiplicative>::try_new(new_val, 3).unwrap()
         };
 
         // 3. Call try_new and assert that it fails
@@ -302,11 +302,11 @@ mod test_homomorphism {
 
     #[test]
     fn test_homomorphism_kernel() {
-        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
         let z6 = GroupGenerators::generate_modulo_group_add(6).unwrap();
         let hom = Homomorphism::new(valid_mapping, None);
 
-        let identity_h = Modulo::<Additive>::new(0, 2).unwrap();
+        let identity_h = Modulo::<Additive>::try_new(0, 2).unwrap();
 
         let kernel = hom.kernel(&z6, &identity_h).unwrap();
         eprintln!("Kernel elements: {:?}", kernel.elements());
@@ -315,7 +315,7 @@ mod test_homomorphism {
 
     #[test]
     fn test_homomorphism_image() {
-        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
         let z6 = GroupGenerators::generate_modulo_group_add(6).unwrap();
         let hom = Homomorphism::new(valid_mapping, None);
 
@@ -327,7 +327,7 @@ mod test_homomorphism {
     #[test]
     fn test_homomorphism_is_injective_success() {
         // trivial case, identity homomorphism
-        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() , 6).unwrap();
+        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() , 6).unwrap();
         let z6 = GroupGenerators::generate_modulo_group_add(6).unwrap();
         let hom = Homomorphism::new(valid_mapping, None);
 
@@ -336,7 +336,7 @@ mod test_homomorphism {
 
     #[test]
     fn test_homomorphism_is_injective_fail() {
-        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2 , 2).unwrap();
+        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2 , 2).unwrap();
         let z6 = GroupGenerators::generate_modulo_group_add(6).unwrap();
         let hom = Homomorphism::new(valid_mapping, None);
 
@@ -345,7 +345,7 @@ mod test_homomorphism {
 
     #[test]
     fn test_homomorphism_is_surjective_success() {
-        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 2, 2).unwrap();
+        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
         let z6 = GroupGenerators::generate_modulo_group_add(6).unwrap();
         let z2 = GroupGenerators::generate_modulo_group_add(2).unwrap();
         let hom = Homomorphism::new(valid_mapping, None);
@@ -355,7 +355,7 @@ mod test_homomorphism {
 
     #[test]
     fn test_homomorphism_is_surjective_fail() {
-        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::new(m.value() % 3, 3).unwrap();
+        let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 3, 3).unwrap();
         let z6 = GroupGenerators::generate_modulo_group_add(6).unwrap();
         let z2 = GroupGenerators::generate_modulo_group_add(2).unwrap();
         let hom = Homomorphism::new(valid_mapping, None);

@@ -32,7 +32,7 @@ impl Error for ModuloError {}
 
 
 /// Modulo struct for add/mul, Op can be Additive, Multiplicative,
-/// call it with Modulo::<Additive>::method()
+/// call it with `Modulo::<Additive>::method()`
 #[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Modulo<Op> {
     value: u64,
@@ -75,7 +75,7 @@ impl ModuloOperation for Additive {
         "+"
     }
     fn generate_group(modulus: u64) -> Result<Vec<Modulo<Self>>, AbsaglError> {
-        (0..modulus).map(|i| Modulo::new(i, modulus)).collect()
+        (0..modulus).map(|i| Modulo::try_new(i, modulus)).collect()
     }
 }
 
@@ -102,7 +102,7 @@ impl ModuloOperation for Multiplicative {
     fn generate_group(modulus: u64) -> Result<Vec<Modulo<Self>>, AbsaglError> {
         (1..modulus)
             .filter(|&k| utils::gcd(k as usize, modulus as usize) == 1)
-            .map(|k| Modulo::new(k, modulus))
+            .map(|k| Modulo::try_new(k, modulus))
             .collect()
     }
 }
@@ -189,9 +189,18 @@ where
 
 
 impl<Op> Modulo<Op> where Modulo<Op>: GroupElement {
+    
+    /// Create a new Modulo element, this will not check if the value is valid in the group,
+    /// it is up to the caller to ensure that the value is a valid member of the group.
+    pub fn new(value: u64, modulus: u64) -> Self 
+    where 
+        Op: ModuloOperation,
+    {
+        Modulo { value, modulus, _marker: PhantomData }
+    }
 
-    /// Create a new Modulo element
-    pub fn new(value: u64, modulus: u64) -> Result<Self, AbsaglError> 
+    /// Create a new Modulo element, this will check if the value is valid in the group,
+    pub fn try_new(value: u64, modulus: u64) -> Result<Self, AbsaglError> 
     where 
         Op: ModuloOperation,
     {
@@ -278,7 +287,7 @@ mod test_modulos {
 
     #[test]
     fn test_modulo_add_create_fail_zero_modulus() {
-        let result = Modulo::<Additive>::new(1, 0);
+        let result = Modulo::<Additive>::try_new(1, 0);
         match result {
             // you can use Err(AbsaglError::Modulo(_)) too
             Err(AbsaglError::Modulo(ModuloError::ZeroModulus)) => {
@@ -290,7 +299,7 @@ mod test_modulos {
 
     #[test]
     fn test_modulo_mul_create_fail_not_member() {
-        let result = Modulo::<Multiplicative>::new(2, 4);
+        let result = Modulo::<Multiplicative>::try_new(2, 4);
         match result {
             // you can use Err(AbsaglError::Modulo(_)) too
             Err(AbsaglError::Modulo(ModuloError::ElementNotInGroup { value: 2, modulus: 4 })) => {
@@ -304,16 +313,16 @@ mod test_modulos {
 
     #[test]
     fn test_modulo_op_add() {
-        let a = Modulo::<Additive>::new(1, 5).unwrap();
-        let b = Modulo::<Additive>::new(3, 5).unwrap();
+        let a = Modulo::<Additive>::try_new(1, 5).unwrap();
+        let b = Modulo::<Additive>::try_new(3, 5).unwrap();
         let c = a.op(&b);
         assert_eq!(c.value, 4);
     }
 
     #[test]
     fn test_modulo_op_mul() {
-        let a = Modulo::<Multiplicative>::new(2, 5).unwrap();
-        let b = Modulo::<Multiplicative>::new(3, 5).unwrap();
+        let a = Modulo::<Multiplicative>::try_new(2, 5).unwrap();
+        let b = Modulo::<Multiplicative>::try_new(3, 5).unwrap();
         let c = a.op(&b);
         assert_eq!(c.value, 1);
     }
@@ -332,48 +341,48 @@ mod test_modulos {
 
     #[test]
     fn test_modulo_inverse_add() {
-        let a = Modulo::<Additive>::new(3, 5).unwrap();
+        let a = Modulo::<Additive>::try_new(3, 5).unwrap();
         let inverse = a.inverse();
         assert_eq!(inverse.value, 2);
     }
 
     #[test]
     fn test_modulo_inverse_mul() {
-        let a = Modulo::<Multiplicative>::new(17, 46).unwrap();
+        let a = Modulo::<Multiplicative>::try_new(17, 46).unwrap();
         let inverse = a.inverse();
         assert_eq!(inverse.value, 19);
     }
 
     #[test]
     fn test_modulo_order_add() {
-        let a = Modulo::<Additive>::new(3, 5).unwrap();
+        let a = Modulo::<Additive>::try_new(3, 5).unwrap();
         assert_eq!(a.order(), 5);
     }
 
     #[test]
     fn test_modulo_order_add_identity() {
-        let a = Modulo::<Additive>::new(0, 5).unwrap();
+        let a = Modulo::<Additive>::try_new(0, 5).unwrap();
         // The order of the identity element should be 1
         assert_eq!(a.order(), 1);
     }
 
     #[test]
     fn test_modulo_order_mul() {
-        let a = Modulo::<Multiplicative>::new(3, 7).unwrap();
+        let a = Modulo::<Multiplicative>::try_new(3, 7).unwrap();
         assert_eq!(a.order(), 6);
     }
 
     #[test]
     fn test_modulo_order_mul_identity() {
-        let a = Modulo::<Multiplicative>::new(1, 7).unwrap();
+        let a = Modulo::<Multiplicative>::try_new(1, 7).unwrap();
         // The order of the identity element should be 1
         assert_eq!(a.order(), 1);
     }
 
     #[test]
     fn test_modulo_checked_op_size_mismatch_add() {
-        let a = Modulo::<Additive>::new(1, 5).unwrap();
-        let b = Modulo::<Additive>::new(2, 6).unwrap();
+        let a = Modulo::<Additive>::try_new(1, 5).unwrap();
+        let b = Modulo::<Additive>::try_new(2, 6).unwrap();
         let result = a.checked_op(&b);
         match result {
             // you can use Err(AbsaglError::Modulo(_)) too
@@ -386,7 +395,7 @@ mod test_modulos {
 
     #[test]
     fn test_go_canonical_bytes() {
-        let a = Modulo::<Additive>::new(2, 5).expect("should create permutation");
+        let a = Modulo::<Additive>::try_new(2, 5).expect("should create permutation");
         println!("canonical form: {:?}", a.to_canonical_bytes());
         let b : Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 5];
         assert_eq!(a.to_canonical_bytes(), b);
@@ -395,13 +404,13 @@ mod test_modulos {
 
     #[test]
     fn test_display_add() {
-        let a = Modulo::<Additive>::new(2, 5).expect("should create permutation");
+        let a = Modulo::<Additive>::try_new(2, 5).expect("should create permutation");
         assert_eq!(format!("{}", a), "2 (mod 5)+");
     }
 
     #[test]
     fn test_display_mul() {
-        let a = Modulo::<Multiplicative>::new(2, 5).expect("should create permutation");
+        let a = Modulo::<Multiplicative>::try_new(2, 5).expect("should create permutation");
         assert_eq!(format!("{}", a), "2 (mod 5)×");
     }
 

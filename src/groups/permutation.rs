@@ -35,7 +35,7 @@ impl Error for PermutationError {}
 
 
 // region: implement permutation group using Vec (standard way in many computational group theory libraries)
-/// note that unlike math symbol, in Vector representation, if we see Vector [1, 2, 0],
+/// note that unlike math symbol, in Vector representation, if we see Vector `[1, 2, 0]`,
 /// it means 0 -> 1, 1 -> 2, 2 -> 0, it means index 0 map to 1, index 1 map to 2, index 2 map to 0
 /// 
 
@@ -85,9 +85,13 @@ impl CheckedOp for Permutation {
 
 impl Permutation {
 
+    /// Create a new permutation given a mapping, this will not check if the mapping is valid
+    pub fn new(mapping: Vec<usize>) -> Self {
+        Permutation { mapping }
+    }
     
-    /// Create a new permutation given a mapping
-    pub fn new(mapping: Vec<usize>) -> Result<Self, AbsaglError> {
+    /// Create a new permutation given a mapping, this will check if the mapping is valid
+    pub fn try_new(mapping: Vec<usize>) -> Result<Self, AbsaglError> {
         if !utils::is_mapping_valid(&mapping) {
             log::error!("Invalid mapping: {:?}", mapping);
             return Err(PermutationError::NonDisjointCycles)?;
@@ -131,7 +135,7 @@ impl Permutation {
 
     /// Construct a permutation from a list of cycles
     /// so you can pass cycles like (0,2,4) 0-based cycle to create a permutation
-    /// it'll generate a mapping like [[2, 1, 4, 3, 0]] for size 5
+    /// it'll generate a mapping like `[2, 1, 4, 3, 0]` for size 5
     /// 
     /// ```rust
     /// # use absagl::groups::permutation::Permutation; // import the Permutation struct
@@ -574,14 +578,14 @@ mod test_permutaion {
     #[test]
     fn test_permutaion_create_success() {
 
-        let a = Permutation::new(vec![0,1,2]).expect("should create permutation");
+        let a = Permutation::try_new(vec![0,1,2]).expect("should create permutation");
         assert_eq!(a.mapping(), &vec![0,1,2])
 
     }
 
     #[test]
     fn test_permutaion_create_fail() {
-        let result = Permutation::new(vec![0,0,2]);
+        let result = Permutation::try_new(vec![0,0,2]);
         match result {
             Err(AbsaglError::Permutation(PermutationError::NonDisjointCycles)) => {
                 // Test passes, this is the expected outcome
@@ -592,8 +596,8 @@ mod test_permutaion {
 
     #[test]
     fn test_permutation_op() {
-        let a = Permutation::new(vec![0, 1, 2, 4, 3]).expect("should create permutation");
-        let b = Permutation::new(vec![0, 2, 1, 3, 4]).expect("should create permutation");
+        let a = Permutation::try_new(vec![0, 1, 2, 4, 3]).expect("should create permutation");
+        let b = Permutation::try_new(vec![0, 2, 1, 3, 4]).expect("should create permutation");
         
         let c = a.op(&b);
         assert_eq!(c.mapping(), &vec![0, 2, 1, 4, 3]);
@@ -601,7 +605,7 @@ mod test_permutaion {
 
     #[test]
     fn test_permutation_identity() {
-        let a = Permutation::new(vec![0,1,2,3,4]).expect("should create element");
+        let a = Permutation::try_new(vec![0,1,2,3,4]).expect("should create element");
         let identity = Permutation::identity(5) ;
         println!("Identity mapping: {:?}", identity.mapping);
         assert_eq!(identity.mapping(), a.mapping());
@@ -609,7 +613,7 @@ mod test_permutaion {
 
     #[test]
     fn test_permutation_inverse() {
-        let a = Permutation::new(vec![2, 1, 0, 4, 3]).expect("should create element");
+        let a = Permutation::try_new(vec![2, 1, 0, 4, 3]).expect("should create element");
         let inverse = a.inverse();
         let b = inverse.op(&a);
         let idenity = Permutation::identity(a.mapping.len());
@@ -619,9 +623,9 @@ mod test_permutaion {
     #[test]
     fn test_permutation_checked_op_size_mismatch() {
 
-        let a = Permutation::new(vec![0, 1, 2, 3]).expect("should create element");
+        let a = Permutation::try_new(vec![0, 1, 2, 3]).expect("should create element");
 
-        let b = Permutation::new(vec![0, 2, 1, 3, 4]).expect("should create element");
+        let b = Permutation::try_new(vec![0, 2, 1, 3, 4]).expect("should create element");
         let result = a.checked_op(&b);
         match result {
             Err(PermutationError::SizeNotMatch) => {
@@ -660,14 +664,14 @@ mod test_permutaion {
     #[test]
     fn test_permutaion_order() {
         
-        let perm = Permutation::new(vec![1, 0, 3, 4, 2]).expect("should create element");
+        let perm = Permutation::try_new(vec![1, 0, 3, 4, 2]).expect("should create element");
         let order = perm.order();
         assert_eq!(order, 6, "The order of the permutation should be 6");
     }
 
     #[test]
     fn test_to_canonical_bytes() {
-        let a = Permutation::new(vec![0,1]).expect("should create permutation");
+        let a = Permutation::try_new(vec![0,1]).expect("should create permutation");
         println!("canonical form: {:?}", a.to_canonical_bytes());
         let b : Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
         assert_eq!(a.to_canonical_bytes(),b);
@@ -676,13 +680,13 @@ mod test_permutaion {
 
     #[test]
     fn test_display() {
-        let a = Permutation::new(vec![0, 2, 1, 4, 3]).expect("should create permutation");
+        let a = Permutation::try_new(vec![0, 2, 1, 4, 3]).expect("should create permutation");
         assert_eq!(format!("{}", a), "(1 2) (3 4) ");
     }
 
     #[test]
     fn test_display_id() {
-        let a = Permutation::new(vec![0, 1, 2, 3, 4]).expect("should create permutation");
+        let a = Permutation::try_new(vec![0, 1, 2, 3, 4]).expect("should create permutation");
         assert_eq!(format!("{}", a), "(e)");
     }
 
@@ -697,7 +701,7 @@ mod test_alternating_group_element {
     #[test]
     fn test_alternating_group_element_creation_fail() {
 
-        let perm = Permutation::new(vec![1, 0, 3, 4, 2]).expect("should create element");
+        let perm = Permutation::try_new(vec![1, 0, 3, 4, 2]).expect("should create element");
         let result = AlternatingGroupElement::new(perm);
         match result {
             Err(AbsaglError::Permutation(PermutationError::NotEvenPermutation)) => {
@@ -711,7 +715,7 @@ mod test_alternating_group_element {
     #[test]
     fn test_alternating_group_element_creation_success() {
 
-        let perm = Permutation::new(vec![1, 0, 2, 4, 3]).expect("should create element");
+        let perm = Permutation::try_new(vec![1, 0, 2, 4, 3]).expect("should create element");
         let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
         assert_eq!(ag.mapping().len(), 5);
     }
@@ -722,8 +726,8 @@ mod test_alternating_group_element {
     #[test]
     fn test_alternating_group_element_op() {
 
-        let perm1 = Permutation::new(vec![0, 2, 1, 4, 3]).expect("should create element");
-        let perm2 = Permutation::new(vec![0, 2, 1, 4, 3]).expect("should create element");
+        let perm1 = Permutation::try_new(vec![0, 2, 1, 4, 3]).expect("should create element");
+        let perm2 = Permutation::try_new(vec![0, 2, 1, 4, 3]).expect("should create element");
         let ag1 = AlternatingGroupElement::new(perm1).expect("Should create AlternatingGroupElement");
         let ag2 = AlternatingGroupElement::new(perm2).expect("Should create AlternatingGroupElement");
         let result = ag1.op(&ag2);
@@ -740,7 +744,7 @@ mod test_alternating_group_element {
     #[test]
     fn test_alternating_group_element_inverse() {
  
-        let perm = Permutation::new(vec![1, 0, 2, 4, 3]).expect("should create element");
+        let perm = Permutation::try_new(vec![1, 0, 2, 4, 3]).expect("should create element");
 
         let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
         let inverse = ag.inverse();
@@ -752,7 +756,7 @@ mod test_alternating_group_element {
     #[test]
     fn test_alternating_group_element_order() {
         
-        let perm = Permutation::new(vec![1, 0, 2, 4, 3]).expect("should create element");
+        let perm = Permutation::try_new(vec![1, 0, 2, 4, 3]).expect("should create element");
 
         let ag = AlternatingGroupElement::new(perm).expect("Should create AlternatingGroupElement");
         let order = ag.order();

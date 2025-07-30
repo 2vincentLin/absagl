@@ -84,8 +84,19 @@ impl CheckedOp for DihedralElement {
 
 impl DihedralElement {
 
-    /// Creates a new DihedralElement with the given rotation and reflection
-    pub fn new(rotation: usize, reflection: bool, n: usize) -> Result<Self, AbsaglError> {
+    /// Creates a new DihedralElement with the given rotation and reflection.
+    /// This will not check if the size is zero.
+    pub fn new(rotation: usize, reflection: bool, n: usize) -> Self {
+        DihedralElement {
+            rotation,
+            reflection,
+            n,
+        }
+    }
+
+    /// Creates a new DihedralElement with the given rotation and reflection, 
+    /// this will not check if the size is zero
+    pub fn try_new(rotation: usize, reflection: bool, n: usize) -> Result<Self, AbsaglError> {
         if n == 0 {
             log::error!("Size cannot be zero");
         }
@@ -212,7 +223,7 @@ mod test_dihedrals {
 
     #[test]
     fn test_dihedral_element_creation() {
-        let element = DihedralElement::new(1, true, 4).unwrap();
+        let element = DihedralElement::try_new(1, true, 4).unwrap();
         assert_eq!(element.rotation, 1);
         assert!(element.reflection);
         assert_eq!(element.n, 4);
@@ -227,10 +238,10 @@ mod test_dihedrals {
     }
     #[test]
     fn test_dihedral_element_order() {
-        let element = DihedralElement::new(2, false, 4).unwrap();
+        let element = DihedralElement::try_new(2, false, 4).unwrap();
         assert_eq!(element.order(), 2); // 4 / gcd(4, 2) = 2
 
-        let reflection = DihedralElement::new(1, true, 4).unwrap();
+        let reflection = DihedralElement::try_new(1, true, 4).unwrap();
         assert_eq!(reflection.order(), 2); // Reflections always have order 2
 
         let identity = DihedralElement::identity(4);
@@ -239,12 +250,12 @@ mod test_dihedrals {
 
     #[test]
     fn test_dihedral_element_inverse() {
-        let element = DihedralElement::new(1, false, 4).unwrap();
+        let element = DihedralElement::try_new(1, false, 4).unwrap();
         let inverse = element.inverse();
         assert_eq!(inverse.rotation, 3); // 4 - 1 = 3
         assert!(!inverse.reflection); // Inverse of a rotation is itself
 
-        let reflection = DihedralElement::new(2, true, 4).unwrap();
+        let reflection = DihedralElement::try_new(2, true, 4).unwrap();
         let reflection_inverse = reflection.inverse();
         assert_eq!(reflection_inverse.rotation, 2); // Reflection inverse is itself
         assert!(reflection_inverse.reflection);
@@ -252,8 +263,8 @@ mod test_dihedrals {
 
     #[test]
     fn test_dihedral_element_op() {
-        let a = DihedralElement::new(1, false, 4).unwrap();
-        let b = DihedralElement::new(2, true, 4).unwrap();
+        let a = DihedralElement::try_new(1, false, 4).unwrap();
+        let b = DihedralElement::try_new(2, true, 4).unwrap();
         let c = a.op(&b);
         assert_eq!(c.rotation, 3);
         assert!(c.reflection);
@@ -261,15 +272,15 @@ mod test_dihedrals {
 
     #[test]
     fn test_to_canonical_bytes() {
-        let d1 = DihedralElement::new(1, false,9).unwrap();
+        let d1 = DihedralElement::try_new(1, false,9).unwrap();
         let expected: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 9];
         assert_eq!(d1.to_canonical_bytes(), expected);
     }
 
     #[test]
     fn test_dihedral_checked_op() {
-        let a = DihedralElement::new(1, false, 4).unwrap();
-        let b = DihedralElement::new(2, true, 4).unwrap();
+        let a = DihedralElement::try_new(1, false, 4).unwrap();
+        let b = DihedralElement::try_new(2, true, 4).unwrap();
         let result = a.checked_op(&b);
         assert!(result.is_ok());
         let c = result.unwrap();
@@ -277,7 +288,7 @@ mod test_dihedrals {
         assert!(c.reflection);
         
         // Test size mismatch
-        let d = DihedralElement::new(1, false, 5).unwrap();
+        let d = DihedralElement::try_new(1, false, 5).unwrap();
         let result = a.checked_op(&d);
         match result {
             Err(DihedralError::SizeNotMatch) => assert!(true),
