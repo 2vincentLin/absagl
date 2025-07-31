@@ -421,7 +421,7 @@ mod test_coset{
         let b = Modulo::<Additive>::try_new(2, 6).expect("should create element");
         let c = Modulo::<Additive>::try_new(4, 6).expect("should create element");
 
-        let group = FiniteGroup::new(vec![e,b,c]).expect("should create a FiniteGroup");
+        let group = FiniteGroup::try_new(vec![e,b,c]).expect("should create a FiniteGroup");
 
         let coset1 = Coset {
             representative: a,
@@ -450,8 +450,8 @@ mod test_coset{
         let c = Modulo::<Additive>::try_new(6, 8).expect("should create element");
 
 
-        let group1 = FiniteGroup::new(vec![e,a,b,c]).expect("should create a FiniteGroup");
-        let group2 = FiniteGroup::new(vec![e,b]).expect("should create a FiniteGroup");
+        let group1 = FiniteGroup::try_new(vec![e,a,b,c]).expect("should create a FiniteGroup");
+        let group2 = FiniteGroup::try_new(vec![e,b]).expect("should create a FiniteGroup");
 
         let coset1 = Coset {
             representative: b,
@@ -478,7 +478,7 @@ mod test_coset{
         let b = Modulo::<Additive>::try_new(2, 6).expect("should create element");
         let c = Modulo::<Additive>::try_new(4, 6).expect("should create element");
 
-        let group = FiniteGroup::new(vec![e,b,c]).expect("should create a FiniteGroup");
+        let group = FiniteGroup::try_new(vec![e,b,c]).expect("should create a FiniteGroup");
         let coset1 = Coset {
             representative: a,
             subgroup: &group,
@@ -542,7 +542,7 @@ mod test_coset{
         let b = Modulo::<Additive>::try_new(2, 6).expect("should create element");
         let c = Modulo::<Additive>::try_new(4, 6).expect("should create element");
 
-        let group = FiniteGroup::new(vec![e,b,c]).expect("should create a FiniteGroup");
+        let group = FiniteGroup::try_new(vec![e,b,c]).expect("should create a FiniteGroup");
 
         let coset1 = Coset {
             representative: a,
@@ -563,7 +563,7 @@ mod test_coset{
         let b = Modulo::<Additive>::try_new(2, 6).expect("should create element");
         let c = Modulo::<Additive>::try_new(4, 6).expect("should create element");
 
-        let group = FiniteGroup::new(vec![e,b,c]).expect("should create a FiniteGroup");
+        let group = FiniteGroup::try_new(vec![e,b,c]).expect("should create a FiniteGroup");
 
         let coset1 = Coset {
             representative: a,
@@ -608,7 +608,7 @@ mod test_coset{
         let b = Modulo::<Additive>::try_new(4, 8).expect("should create element");
         let c = Modulo::<Additive>::try_new(6, 8).expect("should create element");
 
-        let group = FiniteGroup::new(vec![e,a,b,c]).expect("should create a FiniteGroup");
+        let group = FiniteGroup::try_new(vec![e,a,b,c]).expect("should create a FiniteGroup");
         let coset1 = Coset::new(a, &group, CosetSide::Left).unwrap();
 
         assert_eq!(e, coset1.get_canonical_representative());
@@ -644,7 +644,7 @@ mod test_factor_group {
         let g = Permutation::from_cycles(&vec![vec![0,1]], 3).expect("should create element");
         let s3 = GroupGenerators::generate_permutation_group(3).expect("should generate group");
 
-        let subgroup = FiniteGroup::new(vec![e, g])
+        let subgroup = FiniteGroup::try_new(vec![e, g])
             .expect("should create a FiniteGroup");
 
         let result = FactorGroup::try_new(&s3, &subgroup);
@@ -665,7 +665,7 @@ mod test_factor_group {
         let b = Modulo::<Additive>::try_new(2, 6).expect("should create element");
         let c = Modulo::<Additive>::try_new(4, 6).expect("should create element");
 
-        let normal_subgroup = FiniteGroup::new(vec![e,b,c]).expect("should create a FiniteGroup");
+        let normal_subgroup = FiniteGroup::try_new(vec![e,b,c]).expect("should create a FiniteGroup");
         let group = GroupGenerators::generate_modulo_group_add(6).expect("should generate group");
 
         let factor_group = FactorGroup {
@@ -684,7 +684,7 @@ mod test_factor_group {
         let b = Modulo::<Additive>::try_new(2, 6).expect("should create element");
         let c = Modulo::<Additive>::try_new(4, 6).expect("should create element");
 
-        let normal_subgroup = FiniteGroup::new(vec![e,b,c]).expect("should create a FiniteGroup");
+        let normal_subgroup = FiniteGroup::try_new(vec![e,b,c]).expect("should create a FiniteGroup");
         let group = GroupGenerators::generate_modulo_group_add(6).expect("should generate group");
 
         let factor_group = FactorGroup {
@@ -714,7 +714,7 @@ mod test_factor_group {
         let g4 = Modulo::<Additive>::try_new(4, 12).expect("should create element");
         let g8 = Modulo::<Additive>::try_new(8, 12).expect("should create element");
 
-        let subgroup = FiniteGroup::new(vec![e, g4, g8])
+        let subgroup = FiniteGroup::try_new(vec![e, g4, g8])
             .expect("should create a FiniteGroup");
         let group = GroupGenerators::generate_modulo_group_add(12).expect("should create a FiniteGroup");
         let factor_group = FactorGroup::try_new(&group, &subgroup)
@@ -728,7 +728,7 @@ mod test_factor_group {
 
         let z6 = GroupGenerators::generate_modulo_group_mul(6).expect("should generate group");
         let e = Modulo::<Multiplicative>::try_new(1, 6).expect("should create element");
-        let subgroup = FiniteGroup::new(vec![e]).expect("should create a FiniteGroup");
+        let subgroup = FiniteGroup::try_new(vec![e]).expect("should create a FiniteGroup");
         let factor_group = FactorGroup::try_new(&z6, &subgroup)
             .expect("should create a FactorGroup");
         let cosets = factor_group.coset_partition()

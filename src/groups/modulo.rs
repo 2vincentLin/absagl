@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub enum ModuloError {
-    SizeNotMatch,
+    DifferentModuli,
     ZeroModulus,
     ElementNotInGroup { value: u64, modulus: u64 }, // for Modulo multiplicative group, gcd(x,n)=1
     // Add more as needed
@@ -20,7 +20,7 @@ pub enum ModuloError {
 impl fmt::Display for ModuloError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ModuloError::SizeNotMatch => write!(f, "Size mismatch error"),
+            ModuloError::DifferentModuli => write!(f, "Both moduli must be the same for operation"),
             ModuloError::ZeroModulus => write!(f, "Zero modulus error"),
             ModuloError::ElementNotInGroup { value: v, modulus: n } => write!(f, "{} is not in Modulus({}) when op is mul", v, n),
             // Handle other errors as needed
@@ -179,8 +179,8 @@ where
 
     fn checked_op(&self, other: &Self) -> Result<Self, Self::Error> {
         if self.modulus != other.modulus {
-            log::error!("Size mismatch: {} != {}", self.modulus, other.modulus);
-            Err(ModuloError::SizeNotMatch)
+            log::error!("Different moduli: {} != {}", self.modulus, other.modulus);
+            Err(ModuloError::DifferentModuli)
         } else {
             Ok(self.op(other))
         }
@@ -265,10 +265,7 @@ where
     Op: ModuloOperation, Modulo<Op>: GroupElement
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Option 1: Standard Mathematical Notation (Recommended)
-        // write!(f, "{} (mod {})", self.value, self.modulus)
 
-        // Option 2: Explicit Notation (Good for debugging)
         write!(
             f,
             "{} (mod {}){}",
@@ -380,16 +377,16 @@ mod test_modulos {
     }
 
     #[test]
-    fn test_modulo_checked_op_size_mismatch_add() {
+    fn test_modulo_checked_op_different_moduli_add() {
         let a = Modulo::<Additive>::try_new(1, 5).unwrap();
         let b = Modulo::<Additive>::try_new(2, 6).unwrap();
         let result = a.checked_op(&b);
         match result {
             // you can use Err(AbsaglError::Modulo(_)) too
-            Err(ModuloError::SizeNotMatch) => {
+            Err(ModuloError::DifferentModuli) => {
                 //
             },
-            _ => panic!("Expected Err(AbsaglError::Modulo(ModuloError::SizeNotMatch)), but got {:?}", result),
+            _ => panic!("Expected Err(AbsaglError::Modulo(ModuloError::DifferentModuli)), but got {:?}", result),
         }
     }
 

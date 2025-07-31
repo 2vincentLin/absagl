@@ -11,6 +11,7 @@ pub enum AbsaglError {
     Group(crate::groups::GroupError),
     Coset(crate::groups::factor::CosetError),
     Homomorphism(crate::homomorphism::HomomorphismError),
+    Ring(crate::rings::RingError),
     // this new variant to hold the generic error from T
     Element(Box<dyn Error + Send + Sync + 'static>),
     // ... add other sub-errors
@@ -26,6 +27,7 @@ impl fmt::Display for AbsaglError {
             AbsaglError::Group(e) => write!(f, "Group error: {}", e),
             AbsaglError::Coset(e) => write!(f, "Coset error: {}", e),
             AbsaglError::Homomorphism(e) => write!(f, "Homomorphism error: {}", e),
+            AbsaglError::Ring(e) => write!(f, "Ring error: {}", e),
             AbsaglError::Element(e) => write!(f, "Underlying element error: {}", e),
             AbsaglError::Other(msg) => write!(f, "Other error: {}", msg),
         }
@@ -41,6 +43,7 @@ impl std::error::Error for AbsaglError {
             AbsaglError::Group(e) => Some(e),
             AbsaglError::Coset(e) => Some(e),
             AbsaglError::Homomorphism(e) => Some(e),
+            AbsaglError::Ring(e) => Some(e),
             AbsaglError::Element(e) => Some(e.as_ref()),
             AbsaglError::Other(_) => None,
         }
@@ -82,6 +85,12 @@ impl From<crate::groups::dihedral::DihedralError> for AbsaglError {
 impl From<crate::homomorphism::HomomorphismError> for AbsaglError {
     fn from(e: crate::homomorphism::HomomorphismError) -> Self {
         AbsaglError::Homomorphism(e)
+    }
+}
+
+impl From<crate::rings::RingError> for AbsaglError {
+    fn from(e: crate::rings::RingError) -> Self {
+        AbsaglError::Ring(e)
     }
 }
 

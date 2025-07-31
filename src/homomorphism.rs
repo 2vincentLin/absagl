@@ -155,7 +155,7 @@ where
             .cloned()
             .collect();
 
-        FiniteGroup::new(kernel_elements)
+        FiniteGroup::try_new(kernel_elements)
     }
 
 
@@ -175,7 +175,7 @@ where
             .map(|g| self.apply(g))
             .collect();
 
-        FiniteGroup::new(image_elements.into_iter().collect())
+        FiniteGroup::try_new(image_elements.into_iter().collect())
     }
 
 
@@ -234,7 +234,42 @@ where
         Ok(image_set == target_set)
     }
 
+    /// Checks if the homomorphism is an isomorphism (bijective).
+    ///
+    /// # Arguments
+    /// * `source_group`: A reference to the source group G.
+    /// * `target_group`: A reference to the target group H.
+    /// # Returns
+    /// Ok(true) if the homomorphism is an isomorphism, Ok(false) otherwise, or an error if surjectivity check fails.
+    pub fn is_isomorphism(
+        &self,
+        source_group: &FiniteGroup<G>,
+        target_group: &FiniteGroup<H>,
+    ) -> Result<bool, AbsaglError> {
+        Ok(self.is_injective(source_group) && self.is_surjective(source_group, target_group)?)
+    }
+}
 
+
+// Implementation block for endomorphisms (homomorphisms from a group to itself)
+impl<G, F> Homomorphism<G, G, F>
+where
+    G: GroupElement,
+    F: Fn(&G) -> G,
+{
+    /// Checks if the homomorphism is an automorphism (isomorphism from G to G).
+    /// 
+    /// # Arguments
+    /// * `group`: A reference to the finite group G.
+    /// # Returns
+    /// Ok(true) if the homomorphism is an automorphism, Ok(false) otherwise, or an error if isomorphism check fails.
+    pub fn is_automorphism(
+        &self,
+        group: &FiniteGroup<G>,
+    ) -> Result<bool, AbsaglError> {
+        // Check isomorphism from group to itself
+        self.is_isomorphism(group, group)
+    }
 }
 
 
@@ -363,7 +398,49 @@ mod test_homomorphism {
         assert!(!hom.is_surjective(&z6, &z2).unwrap(), "Homomorphism should not be surjective");
     }
 
+    #[test]
+    fn test_isomorphism_success() {
+        // Z_4 (additive group)
+        let z4_a = GroupGenerators::generate_modulo_group_add(4).unwrap();
+        let z4_b = GroupGenerators::generate_modulo_group_add(4).unwrap();
 
+        // Isomorphism: identity map
+        let identity_map = |x: &Modulo<Additive>| x.clone();
+        let hom = Homomorphism::new(identity_map, Some("Identity".to_string()));
+
+        assert!(hom.is_isomorphism(&z4_a, &z4_b).unwrap(), "Identity map should be an isomorphism");
+    }
+
+    #[test]
+    fn test_is_isomorphism_fail() {
+        // Z_4 (additive group)
+        let z4 = GroupGenerators::generate_modulo_group_add(4).unwrap();
+        let z2 = GroupGenerators::generate_modulo_group_add(2).unwrap();
+
+        // Invalid mapping: cannot map Z_4 to Z_2
+        let invalid_map = |x: &Modulo<Additive>| Modulo::<Additive>::try_new(x.value() % 2, 2).unwrap();
+        let hom = Homomorphism::new(invalid_map, Some("Invalid".to_string()));
+
+        assert!(!hom.is_isomorphism(&z4, &z2).unwrap(), "Invalid map should not be an isomorphism");
+    }
+
+    #[test]
+    fn test_is_automorphism_success() {
+        // Identity homomorphism on Z_5 is an automorphism
+        let z5 = GroupGenerators::generate_modulo_group_add(5).unwrap();
+        let identity_map = |x: &Modulo<Additive>| x.clone();
+        let hom = Homomorphism::new(identity_map, Some("Identity".to_string()));
+        assert!(hom.is_automorphism(&z5).unwrap());
+    }
+
+    #[test]
+    fn test_is_automorphism_fail() {
+        
+        let z5 = GroupGenerators::generate_modulo_group_add(5).unwrap();
+        let invalid_map = |_x: &Modulo<Additive>| Modulo::<Additive>::try_new(0, 5).unwrap();
+        let hom = Homomorphism::new(invalid_map, Some("Invalid".to_string()));
+        assert!(!hom.is_automorphism(&z5).unwrap());
+    }
 
 
 
