@@ -13,6 +13,7 @@ use std::marker::PhantomData;
 pub enum ModuloError {
     DifferentModuli,
     ZeroModulus,
+    DifferentComponentCount,
     ElementNotInGroup { value: u64, modulus: u64 }, // for Modulo multiplicative group, gcd(x,n)=1
     // Add more as needed
 }
@@ -22,6 +23,7 @@ impl fmt::Display for ModuloError {
         match self {
             ModuloError::DifferentModuli => write!(f, "Both moduli must be the same for operation"),
             ModuloError::ZeroModulus => write!(f, "Zero modulus error"),
+            ModuloError::DifferentComponentCount => write!(f, "Direct product elements must have the same number of components"),
             ModuloError::ElementNotInGroup { value: v, modulus: n } => write!(f, "{} is not in Modulus({}) when op is mul", v, n),
             // Handle other errors as needed
         }
@@ -275,6 +277,10 @@ where
         )
     }
 }
+
+
+
+
 
 
 #[cfg(test)]

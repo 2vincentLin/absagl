@@ -2,7 +2,7 @@ pub mod modulo;
 pub mod permutation;
 pub mod dihedral;
 pub mod factor;
-
+pub mod directproduct;
 
 use std::fmt::{self, Debug};
 use std::error::Error;
@@ -10,6 +10,35 @@ use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
 use crate::error::AbsaglError;
+use crate::utils;
+use crate::groups::directproduct::DirectProductElement;
+
+
+#[derive(Debug)]
+pub enum GroupError {
+    NotClosed,
+    NotAbelian, // this is for abelian group
+    NotSubgroup,
+    NotNormalSubgroup,
+    NotFound, // this is for identity not found
+    
+    // some operation error
+}
+
+impl fmt::Display for GroupError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GroupError::NotClosed => write!(f, "This group is not closed"),
+            GroupError::NotAbelian => write!(f, "This group is not abelian"),
+            GroupError::NotSubgroup => write!(f, "The subgroup equal to whole group"),
+            GroupError::NotNormalSubgroup => write!(f, "The subgroup is not normal subgroup in whole group"),
+            GroupError::NotFound => write!(f, "Identity element not found in the group"),
+            
+        }
+    }
+}
+
+impl Error for GroupError {}
 
 
 /// A marker for additive group operations.
@@ -19,11 +48,6 @@ pub struct Additive;
 /// A marker for multiplicative group operations.
 #[derive(Clone, Debug, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Multiplicative;
-
-
-
-
-
 
 
 /// A trait representing a group element, it can be finite or coset.
@@ -103,8 +127,8 @@ impl<T: GroupElement> Group<T> for FiniteGroup<T> {
     }
 
     /// Returns the identity element of the group by looping through whole group,
-    /// where e.op(x)==x and x.op(e)==x.
-    /// if you need identity element from GroupElement, call element.identity()
+    /// where `e.op(x)==x` and `x.op(e)==x`.
+    /// if you need identity element from GroupElement, call `element.identity()`
     fn identity(&self) -> T {
         // Find the element e such that for all x, e.op(x) == x and x.op(e) == x
         self.elements.iter().find(|e| {
@@ -245,6 +269,32 @@ impl<T: GroupElement> FiniteGroup<T> {
         Ok(subgroup)
 
     }
+
+    /// If the group is abelian, computes its decomposition into a direct product
+    /// of cyclic groups of prime-power orders.
+    pub fn abelian_decomposition(&self) -> Result<AbelianDecomposition, GroupError> {
+        if !self.is_abelian() {
+            log::error!("The group is not abelian, cannot compute decomposition");
+            return Err(GroupError::NotAbelian);
+        }
+
+        let order = self.order() as u64;
+        if order == 0 {
+            // Or handle as another error type
+            log::error!("The group order is zero");
+            return Err(GroupError::NotFound);
+        }
+        
+        // You'll need a prime factorization function.
+        // Let's assume it's in `src/utils.rs`.
+        let prime_factors = utils::prime_factorization(order);
+
+        Ok(AbelianDecomposition {
+            prime_power_orders: prime_factors,
+        })
+    }
+
+
 }
 
 impl<T: GroupElement> PartialEq for FiniteGroup<T> {
@@ -297,32 +347,57 @@ impl<T: GroupElement + CanonicalRepr> Hash for FiniteGroup<T> {
 }
 
 
-
-#[derive(Debug, PartialEq)]
-pub enum GroupError {
-    NotClosed,
-    NotAbelian, // this is for abelian group
-    NotSubgroup,
-    NotNormalSubgroup,
-    NotFound, // this is for identity not found
-    
-    // some operation error
+/// Represents the decomposition of a finite abelian group
+/// into a direct product of cyclic groups of prime-power order.
+#[derive(Debug, PartialEq, Eq)]
+pub struct AbelianDecomposition {
+    pub prime_power_orders: Vec<(u64, u32)>, // Vec of (prime, exponent)
 }
 
-impl fmt::Display for GroupError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            GroupError::NotClosed => write!(f, "This group is not closed"),
-            GroupError::NotAbelian => write!(f, "This group is not abelian"),
-            GroupError::NotSubgroup => write!(f, "The subgroup equal to whole group"),
-            GroupError::NotNormalSubgroup => write!(f, "The subgroup is not normal subgroup in whole group"),
-            GroupError::NotFound => write!(f, "Identity element not found in the group"),
-            
-        }
+impl AbelianDecomposition {
+    /// Returns the order of the group represented by this decomposition.
+    pub fn order(&self) -> u64 {
+        self.prime_power_orders
+            .iter()
+            .map(|(p, k)| p.pow(*k))
+            .product()
     }
 }
 
-impl Error for GroupError {}
+
+
+
+
+
+
+/// Represents the direct product group structure itself.
+#[derive(Debug, Clone)]
+pub struct DirectProductGroup {
+    /// The list of cyclic groups (Z_p^k) that form the direct product.
+    pub factors: Vec<FiniteGroup<modulo::Modulo<Additive>>>,
+}
+
+impl DirectProductGroup {
+    /// Creates a new direct product group from an abelian decomposition.
+    pub fn from_decomposition(decomposition: &AbelianDecomposition) -> Result<Self, AbsaglError> {
+        let mut factors = Vec::new();
+        for (p, k) in &decomposition.prime_power_orders {
+            let order = p.pow(*k);
+            // Use your existing generator for Z_n
+            let cyclic_group = GroupGenerators::generate_modulo_group_add(order as usize)?;
+            factors.push(cyclic_group);
+        }
+        Ok(DirectProductGroup { factors })
+    }
+
+    /// Returns the identity element of the direct product group.
+    pub fn identity(&self) -> DirectProductElement {
+        let components = self.factors.iter()
+            .map(|group| group.identity())
+            .collect();
+        DirectProductElement { components }
+    }
+}
 
 /// a collection of group generators
 /// This struct is used to generate groups of different types
@@ -524,6 +599,15 @@ mod test_finite_group {
             println!("not equal");
         }
         assert_ne!(group1, group2);
+    }
+
+    #[test]
+    fn test_abelian_decomposition() {
+        let group = GroupGenerators::generate_modulo_group_add(6).unwrap();
+        let decomposition = group.abelian_decomposition().expect("should decompose");
+
+        assert_eq!(decomposition.prime_power_orders, vec![(2, 1), (3, 1)]);
+        assert_eq!(decomposition.order(), 6);
     }
 
 

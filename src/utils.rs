@@ -62,6 +62,36 @@ pub fn modular_inverse(a: i64, n: i64) -> Option<i64> {
 }
 
 
+/// Performs prime factorization of a number n.
+/// Returns a vector of tuples (prime, exponent).
+/// the algotithm iteratively divides n by each prime number starting from 2,
+/// so it gaurantees that the result is in ascending order of primes.
+/// Example: prime_factorization(12) -> `vec![(2, 2), (3, 1)]`
+pub fn prime_factorization(mut n: u64) -> Vec<(u64, u32)> {
+    let mut factors = Vec::new();
+    if n <= 1 {
+        return factors;
+    }
+
+    let mut d = 2;
+    while d * d <= n {
+        let mut count = 0;
+        while n % d == 0 {
+            count += 1;
+            n /= d;
+        }
+        if count > 0 {
+            factors.push((d, count));
+        }
+        d += 1;
+    }
+    if n > 1 {
+        factors.push((n, 1));
+    }
+    factors
+}
+
+
 /// A macro to mimic a notebook's "In/Out" cells for easy documentation.
 ///
 /// It takes an expression, prints the expression as a string, executes it,
@@ -100,7 +130,16 @@ mod tests {
         assert_eq!(result, 44 as usize)
     }
 
+    #[test]
+    fn test_modular_inverse() {
+        let result = modular_inverse(3, 11);
+        assert_eq!(result, Some(4)); // 3 * 4 % 11 == 1
+    }
 
-
+    #[test]
+    fn test_prime_factorization() {
+        let result = prime_factorization(12);
+        assert_eq!(result, vec![(2, 2), (3, 1)]);
+    }
 
 }

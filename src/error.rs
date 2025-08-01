@@ -2,7 +2,10 @@
 use std::fmt;
 use std::error::Error;
 
-
+// todo: derive partial eq and eq for this error, the challenge is that it contains a Box<dyn Error>
+// which does not implement PartialEq or Eq
+/// Represents errors that can occur in the Absagl library.
+/// This enum can be extended to include more specific errors as needed.
 #[derive(Debug)]
 pub enum AbsaglError {
     Modulo(crate::groups::modulo::ModuloError),
