@@ -22,6 +22,7 @@ use absagl::show;
 use absagl::homomorphism::Homomorphism;
 use absagl::groups::factor::CosetSide;
 use rayon::result;
+use rayon::vec;
 
 
 use std::marker::PhantomData;
@@ -37,40 +38,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init(); // Initialize the logger
 
     
-    
+    let n = 3;
+    let sigma = Permutation::from_cycles(&vec![vec![0,1]], n)?;
+    let tau = Permutation::from_cycles(&[(0..n).collect::<Vec<_>>()], n)?;
+    let tau_inverse = tau.inverse();
 
+    println!("sigma, tau, tau_inverse: {}, {}, {}", sigma, tau, tau_inverse);
 
+    // let result = tau * sigma * tau_inverse;
+    // println!("result: {}", result);
 
-    let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
-    let hom = Homomorphism::new(valid_mapping, None);
+    let result = (tau.clone()*tau.clone()) * sigma * (tau_inverse.clone()*tau_inverse);
+    println!("result: {}", result);
 
-    println!("Homomorphism: {:?}", hom);
+    let n = 4;
+    let sigma = Permutation::from_cycles(&vec![vec![0,1]], n)?;
+    let tau = Permutation::from_cycles(&[(0..n).collect::<Vec<_>>()], n)?;
+    let tau_inverse = tau.inverse();
 
-    let valid_mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
-    let hom = Homomorphism::new(valid_mapping, Some("to Z_2".to_string()));
+    println!("sigma, tau, tau_inverse: {}, {}, {}", sigma, tau, tau_inverse);
 
-    println!("Homomorphism: {:?}", hom);
+    // let result = tau * sigma * tau_inverse;
+    // println!("result: {}", result);
 
-    println!("# Example: Homomorphism Kernel\n");
+    let result = (&tau * &tau) * sigma * (&tau_inverse * &tau_inverse);
+    println!("result: {}", result);
 
-    let z4 = show!(GroupGenerators::generate_modulo_group_add(4).unwrap());
-    let identity_h = show!(Modulo::<Additive>::try_new(0, 2).unwrap());
-
-    let mapping = |m: &Modulo<Additive>| Modulo::<Additive>::try_new(m.value() % 2, 2).unwrap();
-
-    let hom = show!(Homomorphism::try_new(&z4, mapping, None).unwrap());
-
-    show!(hom.kernel(&z4, &identity_h));
-
-    let a = Modulo::<Multiplicative>::try_new(1,3).unwrap();
-    println!("order of {} is {}", a, a.order());
-
-    let a = Modulo::<Additive>::try_new(0,3).unwrap();
-    println!("order of {:?} is {}", a, a.order());
-
-    let a = Permutation::try_new(vec![0, 2, 1, 4, 3]).expect("should create permutation");
-    println!("a: {}", a);
-    
+    println!("13 /=2 = {}", 13 / 2);
 
     Ok(())
 }

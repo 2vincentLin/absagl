@@ -13,6 +13,8 @@ use crate::error::AbsaglError;
 use crate::utils;
 use crate::groups::directproduct::DirectProductElement;
 
+use rayon::prelude::*;
+
 
 #[derive(Debug)]
 pub enum GroupError {
@@ -51,7 +53,10 @@ pub struct Multiplicative;
 
 
 /// A trait representing a group element, it can be finite or coset.
-pub trait GroupElement: Clone + PartialEq + Eq + Hash {
+/// it must derive Clone, PartialEq, Eq, Hash, and Sync.
+/// for PartialEq, Eq, Hash, it is used to compare two elements in the group.
+/// for Sync, it is used to allow the element to be used in parallel computations.
+pub trait GroupElement: Clone + PartialEq + Eq + Hash + Sync {
     /// The group operation (usually denoted as *)
     fn op(&self, other: &Self) -> Self;
 
@@ -149,6 +154,8 @@ impl<T: GroupElement> Group<T> for FiniteGroup<T> {
     }
 
     /// Checks if the group is closed under the group operation
+    /// A group is closed if for all elements i and j in the group, i.op(j) is also in the group.
+    /// this is a single-threaded implementation, if you want to use parallel computing, use `is_closed_parallel()`
     fn is_closed(&self) -> bool {
         for i in &self.elements {
             for j in &self.elements {
@@ -160,8 +167,10 @@ impl<T: GroupElement> Group<T> for FiniteGroup<T> {
         }
         true
     }
+    
 
-    /// check if the group is abelian
+    /// check if the group is abelian, a group is abelian if for all elements i and j in the group, i.op(j) == j.op(i)
+    /// this is a single-threaded implementation, if you want to use parallel computing, use `is_abelian_parallel()`
     fn is_abelian(&self) -> bool {
         for i in &self.elements {
             for j in &self.elements {
@@ -215,6 +224,26 @@ impl<T: GroupElement> FiniteGroup<T> {
         }
         true
     }
+    /// Checks if the group is closed in parallel, this is useful for parallel computing.
+    /// It checks if for all elements i and j in the group, the result of the
+    /// group operation is also in the group.
+    pub fn is_closed_parallel(&self) -> bool {
+        self.elements.par_iter().all(|i|
+            self.elements.par_iter().all(|j|
+                self.elements.contains(&self.operate(i, j))
+            )
+        )
+    }
+
+    /// Checks if the group is abelian in parallel, this is useful for parallel computing.
+    pub fn is_abelian_parallel(&self) -> bool {
+        self.elements.par_iter().all(|i| 
+            self.elements.par_iter().all(|j| 
+                i.op(j) == j.op(i)
+            )
+        )
+    }
+
 
 
     /// generate a normal subgroup given Vec<T>, it'll return error if the generete subgroup is equal to the whole group, 
@@ -467,6 +496,31 @@ mod test_finite_group {
             _ => panic!("Expect Err(AbsaglError::Group(GroupError::NotClosed)), but got {:?}", result)
         }
         // assert!(!group.is_closed());
+    }
+
+    #[test]
+    fn test_is_closed_parallel() {
+        let s6 = Permutation::generate_group(6).expect("Failed to generate S6 group");
+        let s6_group = FiniteGroup::new(s6);
+        assert!(s6_group.is_closed_parallel());
+
+        let s6 = Permutation::generate_group(6).expect("Failed to generate S6 group");
+        let mut s6_missing = s6.clone();
+        s6_missing.pop(); // Remove one element
+        let s6_group_missing = FiniteGroup::new(s6_missing);
+        assert_eq!(s6_group_missing.is_closed_parallel(), false);
+    }
+
+    #[test]
+    fn test_is_abelian_parallel() {
+        let z100 = Modulo::<Additive>::generate_group(100).expect("Failed to generate Z100 group");
+        let z100_group = FiniteGroup::new(z100);
+        assert!(z100_group.is_abelian_parallel());
+
+        let s6 = Permutation::generate_group(6).expect("Failed to generate S6 group");
+        let s6_group = FiniteGroup::new(s6);
+        assert!(!s6_group.is_abelian_parallel());
+
     }
 
     #[test]
